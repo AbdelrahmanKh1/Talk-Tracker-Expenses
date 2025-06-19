@@ -1,9 +1,67 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Apple } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const Auth = () => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { signIn, signUp, signInWithOAuth, user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = isLogin 
+        ? await signIn(email, password)
+        : await signUp(email, password);
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        if (isLogin) {
+          toast.success('Successfully signed in!');
+          navigate('/dashboard');
+        } else {
+          toast.success('Check your email to confirm your account');
+        }
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
+    setLoading(true);
+    try {
+      const { error } = await signInWithOAuth(provider);
+      if (error) {
+        toast.error(error.message);
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6 py-12">
       <div className="max-w-sm mx-auto w-full">
@@ -19,7 +77,7 @@ const Auth = () => {
         </div>
 
         {/* Title and Subtitle */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-3">
             Track expenses with your voice
           </h1>
@@ -29,7 +87,7 @@ const Auth = () => {
         </div>
 
         {/* Example Voice Command */}
-        <div className="bg-white rounded-2xl p-4 mb-12 shadow-sm">
+        <div className="bg-white rounded-2xl p-4 mb-8 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-teal-500 rounded-full flex items-center justify-center">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -43,19 +101,68 @@ const Auth = () => {
           </div>
         </div>
 
-        {/* Authentication Buttons */}
+        {/* Authentication Form */}
+        <form onSubmit={handleEmailAuth} className="space-y-4 mb-4">
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              required
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              required
+              className="mt-1"
+            />
+          </div>
+          <Button 
+            type="submit"
+            className="w-full h-12 bg-teal-500 hover:bg-teal-600 text-white rounded-xl"
+            disabled={loading}
+          >
+            {loading ? 'Loading...' : (isLogin ? 'Sign In' : 'Sign Up')}
+          </Button>
+        </form>
+
+        {/* Toggle between login/signup */}
+        <div className="text-center mb-6">
+          <button
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-teal-600 hover:text-teal-700 text-sm"
+          >
+            {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+          </button>
+        </div>
+
+        {/* Social Authentication Buttons */}
         <div className="space-y-4">
           <Button 
+            type="button"
             className="w-full h-14 bg-white text-black border border-gray-200 hover:bg-gray-50 rounded-2xl text-base font-medium"
-            onClick={() => console.log('Continue with Apple')}
+            onClick={() => handleOAuthSignIn('apple')}
+            disabled={loading}
           >
             <Apple className="w-5 h-5 mr-3" />
             Continue with Apple
           </Button>
 
           <Button 
+            type="button"
             className="w-full h-14 bg-gray-900 text-white hover:bg-gray-800 rounded-2xl text-base font-medium"
-            onClick={() => console.log('Continue with Google')}
+            onClick={() => handleOAuthSignIn('google')}
+            disabled={loading}
           >
             <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
               <path fill="white" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -64,14 +171,6 @@ const Auth = () => {
               <path fill="white" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
             Continue with Google
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            className="w-full h-14 text-gray-600 hover:text-gray-800 text-base font-medium"
-            onClick={() => console.log('Continue with Email')}
-          >
-            Continue with Email
           </Button>
         </div>
 
