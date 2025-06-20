@@ -1,12 +1,17 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LogOut } from 'lucide-react';
+import { useExpenses } from '@/hooks/useExpenses';
+import AddExpenseModal from '@/components/AddExpenseModal';
+import { LogOut, Plus } from 'lucide-react';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { expenses, isLoading, addExpense, isAddingExpense, getMonthlyTotal, getRecentExpenses } = useExpenses();
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('Jun 2025');
 
   const months = [
@@ -30,6 +35,17 @@ const Dashboard = () => {
     }
     return 'User';
   };
+
+  const monthlyTotal = getMonthlyTotal();
+  const recentExpenses = getRecentExpenses();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -70,7 +86,7 @@ const Dashboard = () => {
           </div>
           <span>FREE</span>
           <div className="flex items-center gap-1">
-            <span>1/50</span>
+            <span>{expenses.length}/50</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -85,7 +101,7 @@ const Dashboard = () => {
           <h2 className="text-gray-600 mb-2">My expenses in June</h2>
           <div className="flex items-baseline gap-2">
             <span className="text-gray-600">EGP</span>
-            <span className="text-5xl font-bold">800</span>
+            <span className="text-5xl font-bold">{monthlyTotal.toFixed(0)}</span>
           </div>
         </div>
 
@@ -126,28 +142,46 @@ const Dashboard = () => {
 
         {/* Recent Expenses */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">Recent Expenses</h3>
-          
-          <div className="bg-white rounded-2xl p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z" stroke="#0d9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-                <div>
-                  <div className="font-medium">Miscellaneous</div>
-                  <div className="text-sm text-gray-600">Padel (500), Uber (300)</div>
-                  <div className="text-xs text-gray-500">Health</div>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-semibold">EGP 800</div>
-                <div className="text-xs text-gray-500">2025-06-19</div>
-              </div>
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Recent Expenses</h3>
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="flex items-center gap-2 text-teal-600 hover:text-teal-700 text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Add Expense
+            </button>
           </div>
+          
+          {recentExpenses.length === 0 ? (
+            <div className="bg-white rounded-2xl p-6 text-center text-gray-500">
+              <p>No expenses yet. Add your first expense!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentExpenses.map((expense) => (
+                <div key={expense.id} className="bg-white rounded-2xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z" stroke="#0d9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="font-medium">{expense.description}</div>
+                        <div className="text-xs text-gray-500">{expense.category}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">EGP {expense.amount}</div>
+                      <div className="text-xs text-gray-500">{expense.date}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -162,6 +196,14 @@ const Dashboard = () => {
           </svg>
         </button>
       </div>
+
+      {/* Add Expense Modal */}
+      <AddExpenseModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onAdd={addExpense}
+        isLoading={isAddingExpense}
+      />
     </div>
   );
 };
