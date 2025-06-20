@@ -4,15 +4,29 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useExpenses } from '@/hooks/useExpenses';
+import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 import AddExpenseModal from '@/components/AddExpenseModal';
+import VoiceRecordingModal from '@/components/VoiceRecordingModal';
 import { LogOut, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { expenses, isLoading, addExpense, isAddingExpense, getMonthlyTotal, getRecentExpenses } = useExpenses();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('Jun 2025');
+
+  const {
+    isRecording,
+    audioBlob,
+    isProcessing,
+    startRecording,
+    stopRecording,
+    clearRecording,
+    setIsProcessing,
+  } = useVoiceRecording();
 
   const months = [
     { label: 'Jun', year: '2025', active: true },
@@ -34,6 +48,27 @@ const Dashboard = () => {
       return user.email.split('@')[0];
     }
     return 'User';
+  };
+
+  const handleProcessAudio = async () => {
+    if (!audioBlob) return;
+
+    setIsProcessing(true);
+    try {
+      // For now, we'll show a placeholder message
+      // Later we'll implement the actual AI processing
+      toast.success('Voice processing will be implemented next!');
+      console.log('Audio blob ready for processing:', audioBlob);
+      
+      // Close modal after processing
+      setIsVoiceModalOpen(false);
+      clearRecording();
+    } catch (error) {
+      console.error('Error processing audio:', error);
+      toast.error('Failed to process voice recording');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const monthlyTotal = getMonthlyTotal();
@@ -187,7 +222,10 @@ const Dashboard = () => {
 
       {/* Voice Input Button */}
       <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2">
-        <button className="w-16 h-16 bg-teal-500 rounded-full shadow-lg flex items-center justify-center hover:bg-teal-600 transition-colors">
+        <button 
+          onClick={() => setIsVoiceModalOpen(true)}
+          className="w-16 h-16 bg-teal-500 rounded-full shadow-lg flex items-center justify-center hover:bg-teal-600 transition-colors"
+        >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="white"/>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -203,6 +241,19 @@ const Dashboard = () => {
         onClose={() => setIsAddModalOpen(false)}
         onAdd={addExpense}
         isLoading={isAddingExpense}
+      />
+
+      {/* Voice Recording Modal */}
+      <VoiceRecordingModal
+        isOpen={isVoiceModalOpen}
+        onClose={() => setIsVoiceModalOpen(false)}
+        isRecording={isRecording}
+        audioBlob={audioBlob}
+        isProcessing={isProcessing}
+        onStartRecording={startRecording}
+        onStopRecording={stopRecording}
+        onClearRecording={clearRecording}
+        onProcessAudio={handleProcessAudio}
       />
     </div>
   );
