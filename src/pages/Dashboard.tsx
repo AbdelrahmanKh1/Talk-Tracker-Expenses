@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -5,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 import AddExpenseModal from '@/components/AddExpenseModal';
+import EditExpenseModal from '@/components/EditExpenseModal';
 import VoiceRecordingModal from '@/components/VoiceRecordingModal';
 import { LogOut, Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,8 +14,21 @@ import { toast } from 'sonner';
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { expenses, isLoading, addExpense, isAddingExpense, addBulkExpenses, isAddingBulkExpenses, getMonthlyTotal, getRecentExpenses } = useExpenses();
+  const { 
+    expenses, 
+    isLoading, 
+    addExpense, 
+    isAddingExpense, 
+    addBulkExpenses, 
+    isAddingBulkExpenses, 
+    updateExpense,
+    isUpdatingExpense,
+    getMonthlyTotal, 
+    getRecentExpenses 
+  } = useExpenses();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState(null);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('Jun 2025');
 
@@ -47,6 +62,17 @@ const Dashboard = () => {
       return user.email.split('@')[0];
     }
     return 'User';
+  };
+
+  const handleExpenseClick = (expense) => {
+    setSelectedExpense(expense);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateExpense = (expenseId, items) => {
+    updateExpense({ expenseId, items });
+    setIsEditModalOpen(false);
+    setSelectedExpense(null);
   };
 
   const handleProcessAudio = async () => {
@@ -228,7 +254,7 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-3">
               {recentExpenses.map((expense) => (
-                <div key={expense.id} className="bg-white rounded-2xl p-4">
+                <div key={expense.id} className="bg-white rounded-2xl p-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => handleExpenseClick(expense)}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
@@ -276,13 +302,27 @@ const Dashboard = () => {
         isLoading={isAddingExpense}
       />
 
+      {/* Edit Expense Modal */}
+      <EditExpenseModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedExpense(null);
+        }}
+        expense={selectedExpense}
+        onUpdate={handleUpdateExpense}
+        isLoading={isUpdatingExpense}
+      />
+
       {/* Voice Recording Modal */}
       <VoiceRecordingModal
         isOpen={isVoiceModalOpen}
         onClose={() => setIsVoiceModalOpen(false)}
         isRecording={isRecording}
         audioBlob={audioBlob}
-        isProcessing={isProcessing || isAddingBulkExpenses}
+        isProcessing={isProcessing || isAdding
+
+ExpensesMutation}
         onStartRecording={startRecording}
         onStopRecording={stopRecording}
         onClearRecording={clearRecording}

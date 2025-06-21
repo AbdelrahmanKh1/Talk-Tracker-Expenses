@@ -96,6 +96,51 @@ export const useExpenses = () => {
     },
   });
 
+  const updateExpenseMutation = useMutation({
+    mutationFn: async ({ 
+      expenseId, 
+      items 
+    }: { 
+      expenseId: string; 
+      items: { description: string; amount: number; category: string }[] 
+    }) => {
+      if (!user) throw new Error('User not authenticated');
+
+      // First, delete the original expense
+      const { error: deleteError } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', expenseId)
+        .eq('user_id', user.id);
+
+      if (deleteError) throw deleteError;
+
+      // Then insert the new items
+      const expensesToInsert = items.map(item => ({
+        user_id: user.id,
+        description: item.description,
+        amount: item.amount,
+        category: item.category,
+      }));
+
+      const { data, error } = await supabase
+        .from('expenses')
+        .insert(expensesToInsert)
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      toast.success(`Expense updated with ${data.length} items!`);
+    },
+    onError: (error) => {
+      console.error('Error updating expense:', error);
+      toast.error('Failed to update expense');
+    },
+  });
+
   // Get monthly total for current month
   const getMonthlyTotal = () => {
     const currentMonth = new Date().getMonth();
@@ -122,6 +167,8 @@ export const useExpenses = () => {
     isAddingExpense: addExpenseMutation.isPending,
     addBulkExpenses: addBulkExpensesMutation.mutate,
     isAddingBulkExpenses: addBulkExpensesMutation.isPending,
+    updateExpense: updateExpenseMutation.mutate,
+    isUpdatingExpense: updateExpenseMutation.isPending,
     getMonthlyTotal,
     getRecentExpenses,
   };
