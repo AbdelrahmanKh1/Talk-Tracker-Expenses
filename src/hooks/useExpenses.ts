@@ -67,6 +67,35 @@ export const useExpenses = () => {
     },
   });
 
+  const addBulkExpensesMutation = useMutation({
+    mutationFn: async (expenses: { description: string; amount: number; category?: string }[]) => {
+      if (!user) throw new Error('User not authenticated');
+
+      const expensesToInsert = expenses.map(expense => ({
+        user_id: user.id,
+        description: expense.description,
+        amount: expense.amount,
+        category: expense.category || 'Miscellaneous',
+      }));
+
+      const { data, error } = await supabase
+        .from('expenses')
+        .insert(expensesToInsert)
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      toast.success(`${data.length} expenses added successfully!`);
+    },
+    onError: (error) => {
+      console.error('Error adding bulk expenses:', error);
+      toast.error('Failed to add expenses');
+    },
+  });
+
   // Get monthly total for current month
   const getMonthlyTotal = () => {
     const currentMonth = new Date().getMonth();
@@ -91,6 +120,8 @@ export const useExpenses = () => {
     error,
     addExpense: addExpenseMutation.mutate,
     isAddingExpense: addExpenseMutation.isPending,
+    addBulkExpenses: addBulkExpensesMutation.mutate,
+    isAddingBulkExpenses: addBulkExpensesMutation.isPending,
     getMonthlyTotal,
     getRecentExpenses,
   };

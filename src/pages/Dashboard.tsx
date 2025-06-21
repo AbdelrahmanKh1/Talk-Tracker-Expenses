@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -13,7 +12,7 @@ import { toast } from 'sonner';
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { expenses, isLoading, addExpense, isAddingExpense, getMonthlyTotal, getRecentExpenses } = useExpenses();
+  const { expenses, isLoading, addExpense, isAddingExpense, addBulkExpenses, isAddingBulkExpenses, getMonthlyTotal, getRecentExpenses } = useExpenses();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('Jun 2025');
@@ -55,17 +54,51 @@ const Dashboard = () => {
 
     setIsProcessing(true);
     try {
-      // For now, we'll show a placeholder message
-      // Later we'll implement the actual AI processing
-      toast.success('Voice processing will be implemented next!');
-      console.log('Audio blob ready for processing:', audioBlob);
+      // Convert blob to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
       
-      // Close modal after processing
-      setIsVoiceModalOpen(false);
-      clearRecording();
+      reader.onloadend = async () => {
+        const base64Audio = reader.result?.toString().split(',')[1];
+        
+        if (!base64Audio) {
+          throw new Error('Failed to convert audio to base64');
+        }
+
+        console.log('Sending audio for processing...');
+        
+        // Call our edge function
+        const response = await fetch(`https://rslwcgjgzezptoblckua.supabase.co/functions/v1/process-voice`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzbHdjZ2pnemV6cHRvYmxja3VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjg4MjcsImV4cCI6MjA2NTk0NDgyN30.YArFJ4YmE6c_E-ieRhTwqzhcEl8_sJgS_8-ukbkWarc'}`,
+          },
+          body: JSON.stringify({ audio: base64Audio }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Processing failed: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        console.log('Processing result:', result);
+
+        if (result.expenses && result.expenses.length > 0) {
+          // Add the parsed expenses
+          addBulkExpenses(result.expenses);
+          toast.success(`Found ${result.expenses.length} expenses: "${result.transcription}"`);
+        } else {
+          toast.info(`Transcribed: "${result.transcription}" - No expenses detected. Try saying something like "Coffee 5 EGP"`);
+        }
+
+        // Close modal after processing
+        setIsVoiceModalOpen(false);
+        clearRecording();
+      };
     } catch (error) {
       console.error('Error processing audio:', error);
-      toast.error('Failed to process voice recording');
+      toast.error('Failed to process voice recording. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -249,7 +282,7 @@ const Dashboard = () => {
         onClose={() => setIsVoiceModalOpen(false)}
         isRecording={isRecording}
         audioBlob={audioBlob}
-        isProcessing={isProcessing}
+        isProcessing={isProcessing || isAddingBulkExpenses}
         onStartRecording={startRecording}
         onStopRecording={stopRecording}
         onClearRecording={clearRecording}
