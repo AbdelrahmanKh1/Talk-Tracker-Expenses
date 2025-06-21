@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -320,9 +319,7 @@ const Dashboard = () => {
         onClose={() => setIsVoiceModalOpen(false)}
         isRecording={isRecording}
         audioBlob={audioBlob}
-        isProcessing={isProcessing || isAdding
-
-ExpensesMutation}
+        isProcessing={isProcessing || isAddingBulkExpenses}
         onStartRecording={startRecording}
         onStopRecording={stopRecording}
         onClearRecording={clearRecording}
