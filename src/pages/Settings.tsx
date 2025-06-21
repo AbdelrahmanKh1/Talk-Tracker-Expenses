@@ -2,9 +2,25 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Settings = () => {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    if (window.confirm('Are you sure you want to sign out?')) {
+      await signOut();
+      navigate('/auth');
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+      // For now, just show an alert
+      alert('Account deletion feature coming soon. Please contact support for now.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -50,7 +66,7 @@ const Settings = () => {
               </div>
               <div className="flex-1">
                 <div className="text-sm text-gray-500">Email</div>
-                <div className="font-medium">khaledabdelrahman334@gmail.com</div>
+                <div className="font-medium">{user?.email || 'khaledabdelrahman334@gmail.com'}</div>
               </div>
             </div>
 
@@ -143,7 +159,10 @@ const Settings = () => {
           <h3 className="text-gray-500 text-sm font-medium mb-4 uppercase tracking-wide">Actions</h3>
           
           <div className="bg-white rounded-2xl overflow-hidden">
-            <button className="w-full flex items-center gap-3 p-4 border-b border-gray-100 hover:bg-gray-50">
+            <button 
+              onClick={handleSignOut}
+              className="w-full flex items-center gap-3 p-4 border-b border-gray-100 hover:bg-gray-50"
+            >
               <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -154,7 +173,10 @@ const Settings = () => {
               <span className="font-medium">Sign Out</span>
             </button>
 
-            <button className="w-full flex items-center gap-3 p-4 hover:bg-gray-50">
+            <button 
+              onClick={handleDeleteAccount}
+              className="w-full flex items-center gap-3 p-4 hover:bg-gray-50"
+            >
               <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <polyline points="3,6 5,6 21,6" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

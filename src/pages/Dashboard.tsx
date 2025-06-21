@@ -1,18 +1,22 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
+import { useCurrency } from '@/hooks/useCurrency';
 import AddExpenseModal from '@/components/AddExpenseModal';
 import EditExpenseModal from '@/components/EditExpenseModal';
 import VoiceRecordingModal from '@/components/VoiceRecordingModal';
+import SwipeableExpenseItem from '@/components/SwipeableExpenseItem';
 import { LogOut, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { currency } = useCurrency();
   const { 
     expenses, 
     isLoading, 
@@ -22,6 +26,8 @@ const Dashboard = () => {
     isAddingBulkExpenses, 
     updateExpense,
     isUpdatingExpense,
+    deleteExpense,
+    isDeletingExpense,
     getMonthlyTotal, 
     getRecentExpenses 
   } = useExpenses();
@@ -42,10 +48,10 @@ const Dashboard = () => {
   } = useVoiceRecording();
 
   const months = [
-    { label: 'Jun', year: '2025', active: true },
-    { label: 'May', year: '2025', active: false },
-    { label: 'Apr', year: '2025', active: false },
-    { label: 'Mar', year: '2025', active: false },
+    { label: 'Jun', year: '2025', active: selectedMonth === 'Jun 2025' },
+    { label: 'May', year: '2025', active: selectedMonth === 'May 2025' },
+    { label: 'Apr', year: '2025', active: selectedMonth === 'Apr 2025' },
+    { label: 'Mar', year: '2025', active: selectedMonth === 'Mar 2025' },
   ];
 
   const handleSignOut = async () => {
@@ -63,9 +69,15 @@ const Dashboard = () => {
     return 'User';
   };
 
-  const handleExpenseClick = (expense) => {
+  const handleExpenseEdit = (expense) => {
     setSelectedExpense(expense);
     setIsEditModalOpen(true);
+  };
+
+  const handleExpenseDelete = async (expenseId: string) => {
+    if (window.confirm('Are you sure you want to delete this expense?')) {
+      deleteExpense(expenseId);
+    }
   };
 
   const handleUpdateExpense = (expenseId, items) => {
@@ -79,7 +91,6 @@ const Dashboard = () => {
 
     setIsProcessing(true);
     try {
-      // Convert blob to base64
       const reader = new FileReader();
       reader.readAsDataURL(audioBlob);
       
@@ -92,7 +103,6 @@ const Dashboard = () => {
 
         console.log('Sending audio for processing...');
         
-        // Call our edge function
         const response = await fetch(`https://rslwcgjgzezptoblckua.supabase.co/functions/v1/process-voice`, {
           method: 'POST',
           headers: {
@@ -110,14 +120,12 @@ const Dashboard = () => {
         console.log('Processing result:', result);
 
         if (result.expenses && result.expenses.length > 0) {
-          // Add the parsed expenses
           addBulkExpenses(result.expenses);
           toast.success(`Found ${result.expenses.length} expenses: "${result.transcription}"`);
         } else {
           toast.info(`Transcribed: "${result.transcription}" - No expenses detected. Try saying something like "Coffee 5 EGP"`);
         }
 
-        // Close modal after processing
         setIsVoiceModalOpen(false);
         clearRecording();
       };
@@ -170,13 +178,16 @@ const Dashboard = () => {
       {/* Currency and Plan Info */}
       <div className="px-4 py-2 bg-white border-b">
         <div className="flex items-center gap-4 text-sm text-gray-600">
-          <div className="flex items-center gap-1">
-            <span className="text-lg">🇪🇬</span>
-            <span>EGP</span>
+          <button 
+            onClick={() => navigate('/currency')}
+            className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded"
+          >
+            <span className="text-lg">{currency.flag}</span>
+            <span>{currency.code}</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          </div>
+          </button>
           <span>FREE</span>
           <div className="flex items-center gap-1">
             <span>{expenses.length}/50</span>
@@ -191,9 +202,9 @@ const Dashboard = () => {
       <div className="px-4 py-6 space-y-6">
         {/* Expense Summary */}
         <div className="bg-white rounded-2xl p-6">
-          <h2 className="text-gray-600 mb-2">My expenses in June</h2>
+          <h2 className="text-gray-600 mb-2">My expenses in {selectedMonth.split(' ')[0]}</h2>
           <div className="flex items-baseline gap-2">
-            <span className="text-gray-600">EGP</span>
+            <span className="text-gray-600">{currency.code}</span>
             <span className="text-5xl font-bold">{monthlyTotal.toFixed(0)}</span>
           </div>
         </div>
@@ -253,25 +264,13 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-3">
               {recentExpenses.map((expense) => (
-                <div key={expense.id} className="bg-white rounded-2xl p-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => handleExpenseClick(expense)}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z" stroke="#0d9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </div>
-                      <div>
-                        <div className="font-medium">{expense.description}</div>
-                        <div className="text-xs text-gray-500">{expense.category}</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold">EGP {expense.amount}</div>
-                      <div className="text-xs text-gray-500">{expense.date}</div>
-                    </div>
-                  </div>
-                </div>
+                <SwipeableExpenseItem
+                  key={expense.id}
+                  expense={expense}
+                  onEdit={handleExpenseEdit}
+                  onDelete={handleExpenseDelete}
+                  currencySymbol={currency.symbol}
+                />
               ))}
             </div>
           )}
@@ -293,7 +292,7 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* Add Expense Modal */}
+      {/* Modals */}
       <AddExpenseModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -301,7 +300,6 @@ const Dashboard = () => {
         isLoading={isAddingExpense}
       />
 
-      {/* Edit Expense Modal */}
       <EditExpenseModal
         isOpen={isEditModalOpen}
         onClose={() => {
@@ -313,7 +311,6 @@ const Dashboard = () => {
         isLoading={isUpdatingExpense}
       />
 
-      {/* Voice Recording Modal */}
       <VoiceRecordingModal
         isOpen={isVoiceModalOpen}
         onClose={() => setIsVoiceModalOpen(false)}

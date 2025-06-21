@@ -141,22 +141,45 @@ export const useExpenses = () => {
     },
   });
 
-  // Get monthly total for current month
-  const getMonthlyTotal = () => {
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
+  const deleteExpenseMutation = useMutation({
+    mutationFn: async (expenseId: string) => {
+      if (!user) throw new Error('User not authenticated');
+
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', expenseId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      return expenseId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      toast.success('Expense deleted successfully!');
+    },
+    onError: (error) => {
+      console.error('Error deleting expense:', error);
+      toast.error('Failed to delete expense');
+    },
+  });
+
+  // Get monthly total for selected month
+  const getMonthlyTotal = (monthYear?: string) => {
+    const targetMonth = monthYear || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     
     return expenses
       .filter(expense => {
         const expenseDate = new Date(expense.date);
-        return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+        const expenseMonth = expenseDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        return expenseMonth === targetMonth;
       })
       .reduce((total, expense) => total + Number(expense.amount), 0);
   };
 
-  // Get recent expenses (last 5)
+  // Get recent expenses (last 10)
   const getRecentExpenses = () => {
-    return expenses.slice(0, 5);
+    return expenses.slice(0, 10);
   };
 
   return {
@@ -169,6 +192,8 @@ export const useExpenses = () => {
     isAddingBulkExpenses: addBulkExpensesMutation.isPending,
     updateExpense: updateExpenseMutation.mutate,
     isUpdatingExpense: updateExpenseMutation.isPending,
+    deleteExpense: deleteExpenseMutation.mutate,
+    isDeletingExpense: deleteExpenseMutation.isPending,
     getMonthlyTotal,
     getRecentExpenses,
   };

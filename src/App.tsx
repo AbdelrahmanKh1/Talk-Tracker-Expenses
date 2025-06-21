@@ -9,6 +9,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
+import Currency from "./pages/Currency";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Settings />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/currency" 
+              element={
+                <ProtectedRoute>
+                  <Currency />
                 </ProtectedRoute>
               } 
             />
