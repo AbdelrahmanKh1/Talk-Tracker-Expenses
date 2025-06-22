@@ -76,6 +76,7 @@ const Dashboard = () => {
 
         console.log('Sending audio for processing...');
         console.log('Audio size:', audioBlob.size, 'bytes');
+        console.log('Base64 audio length:', base64Audio.length);
         
         const response = await fetch(`https://rslwcgjgzezptoblckua.supabase.co/functions/v1/process-voice`, {
           method: 'POST',
@@ -87,6 +88,7 @@ const Dashboard = () => {
         });
 
         console.log('Response status:', response.status);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
@@ -123,19 +125,23 @@ const Dashboard = () => {
       
       // Provide more helpful error messages
       let errorMessage = 'Failed to process voice recording';
+      
       if (error.message.includes('rate limit')) {
         errorMessage = 'OpenAI API rate limit reached. Please wait a moment and try again.';
-      } else if (error.message.includes('quota')) {
-        errorMessage = 'OpenAI API quota exceeded. Please check your OpenAI account billing.';
+      } else if (error.message.includes('quota') || error.message.includes('insufficient_quota')) {
+        errorMessage = 'OpenAI API quota exceeded. Please check your OpenAI account at platform.openai.com';
       } else if (error.message.includes('invalid') && error.message.includes('key')) {
         errorMessage = 'OpenAI API key issue. Please contact support.';
       } else if (error.message.includes('too large')) {
         errorMessage = 'Audio recording is too long. Please record a shorter message.';
+      } else if (error.message.includes('Bad request')) {
+        errorMessage = 'Invalid audio format. Please try recording again.';
       } else if (error.message) {
         errorMessage = error.message;
       }
       
       toast.error(errorMessage);
+      console.log('Full error details:', error);
     } finally {
       setIsProcessing(false);
     }

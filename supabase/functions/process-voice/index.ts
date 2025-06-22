@@ -25,6 +25,7 @@ serve(async (req) => {
     // Check if OpenAI API key is available
     const openAIKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIKey) {
+      console.error('OpenAI API key not found in environment');
       throw new Error('OpenAI API key not configured');
     }
 
@@ -33,8 +34,10 @@ serve(async (req) => {
     // Convert base64 to binary with better error handling
     let binaryAudio;
     try {
-      // Clean up the base64 string
+      // Clean up the base64 string - remove data URL prefix if present
       const cleanBase64 = audio.replace(/^data:audio\/[^;]+;base64,/, '');
+      console.log('Cleaned base64 length:', cleanBase64.length);
+      
       binaryAudio = Uint8Array.from(atob(cleanBase64), c => c.charCodeAt(0));
       console.log('Binary audio length:', binaryAudio.length);
     } catch (error) {
@@ -42,7 +45,7 @@ serve(async (req) => {
       throw new Error('Invalid audio data format');
     }
 
-    // Step 1: Transcribe audio
+    // Step 1: Transcribe audio with better error handling
     const formData = new FormData();
     const blob = new Blob([binaryAudio], { type: 'audio/webm' });
     formData.append('file', blob, 'audio.webm');
@@ -66,15 +69,26 @@ serve(async (req) => {
       const errorText = await transcriptionResponse.text();
       console.error('OpenAI transcription error:', errorText);
       
+      // Try to parse the error for more details
+      let errorDetails;
+      try {
+        errorDetails = JSON.parse(errorText);
+      } catch {
+        errorDetails = { error: { message: errorText } };
+      }
+      
       // More specific error handling
       if (transcriptionResponse.status === 429) {
-        throw new Error('OpenAI API rate limit exceeded. Please try again in a few minutes.');
+        throw new Error('OpenAI API rate limit exceeded. Please wait a few minutes and try again.');
       } else if (transcriptionResponse.status === 401) {
-        throw new Error('OpenAI API key is invalid or expired.');
+        throw new Error('OpenAI API key is invalid. Please check your API key configuration.');
       } else if (transcriptionResponse.status === 413) {
         throw new Error('Audio file is too large. Please record a shorter message.');
+      } else if (transcriptionResponse.status === 400) {
+        const message = errorDetails?.error?.message || 'Bad request to OpenAI API';
+        throw new Error(`OpenAI API error: ${message}`);
       } else {
-        throw new Error(`Transcription failed: ${transcriptionResponse.status} - ${errorText}`);
+        throw new Error(`Transcription failed: ${transcriptionResponse.status} - ${errorDetails?.error?.message || errorText}`);
       }
     }
 
@@ -104,7 +118,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expense parser. Extract expenses from text and return them as JSON array.
+            content: `You are an expense parser. Extract expenses from text and return them as a JSON array.
             
 Rules:
 - Parse amounts and descriptions from natural language
@@ -137,6 +151,8 @@ Rules:
       
       if (parseResponse.status === 429) {
         throw new Error('OpenAI API rate limit exceeded during parsing. Please try again in a few minutes.');
+      } else if (parseResponse.status === 401) {
+        throw new Error('OpenAI API key is invalid during parsing. Please check your API key configuration.');
       } else {
         throw new Error(`Parsing failed: ${parseResponse.status} - ${errorText}`);
       }
