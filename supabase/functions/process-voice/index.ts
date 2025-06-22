@@ -7,6 +7,61 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Exponential backoff utility function
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: Error;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      
+      // Don't retry on non-rate-limit errors
+      if (!error.message.includes('rate limit') && !error.message.includes('429')) {
+        throw error;
+      }
+      
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      
+      // Calculate delay with exponential backoff
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`Rate limit hit, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
+      
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError!;
+}
+
+// Enhanced fetch with retry logic
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries: number = 3): Promise<Response> {
+  return retryWithBackoff(async () => {
+    const response = await fetch(url, options);
+    
+    if (response.status === 429) {
+      // Check for Retry-After header
+      const retryAfter = response.headers.get('retry-after');
+      const retryAfterMs = retryAfter ? parseInt(retryAfter) * 1000 : 2000;
+      
+      console.log(`Rate limit (429) - waiting ${retryAfterMs}ms as suggested by server`);
+      await new Promise(resolve => setTimeout(resolve, retryAfterMs));
+      
+      throw new Error(`rate limit exceeded - retry after ${retryAfterMs}ms`);
+    }
+    
+    return response;
+  }, maxRetries);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -29,12 +84,11 @@ serve(async (req) => {
       throw new Error('OpenAI API key not configured');
     }
 
-    console.log('OpenAI API key found, length:', openAIKey.length);
+    console.log('OpenAI API key found, proceeding with processing...');
 
     // Convert base64 to binary with better error handling
     let binaryAudio;
     try {
-      // Clean up the base64 string - remove data URL prefix if present
       const cleanBase64 = audio.replace(/^data:audio\/[^;]+;base64,/, '');
       console.log('Cleaned base64 length:', cleanBase64.length);
       
@@ -45,31 +99,29 @@ serve(async (req) => {
       throw new Error('Invalid audio data format');
     }
 
-    // Step 1: Transcribe audio with better error handling
+    // Step 1: Transcribe audio with retry logic
     const formData = new FormData();
     const blob = new Blob([binaryAudio], { type: 'audio/webm' });
     formData.append('file', blob, 'audio.webm');
     formData.append('model', 'whisper-1');
 
-    console.log('Sending to OpenAI for transcription...');
+    console.log('Sending to OpenAI for transcription with retry logic...');
     console.log('Blob size:', blob.size);
 
-    const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    const transcriptionResponse = await fetchWithRetry('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openAIKey}`,
       },
       body: formData,
-    });
+    }, 3); // Max 3 retries for transcription
 
     console.log('Transcription response status:', transcriptionResponse.status);
-    console.log('Transcription response headers:', Object.fromEntries(transcriptionResponse.headers.entries()));
 
     if (!transcriptionResponse.ok) {
       const errorText = await transcriptionResponse.text();
       console.error('OpenAI transcription error:', errorText);
       
-      // Try to parse the error for more details
       let errorDetails;
       try {
         errorDetails = JSON.parse(errorText);
@@ -77,9 +129,8 @@ serve(async (req) => {
         errorDetails = { error: { message: errorText } };
       }
       
-      // More specific error handling
       if (transcriptionResponse.status === 429) {
-        throw new Error('OpenAI API rate limit exceeded. Please wait a few minutes and try again.');
+        throw new Error('OpenAI API rate limit exceeded. The system will automatically retry. Please wait a moment.');
       } else if (transcriptionResponse.status === 401) {
         throw new Error('OpenAI API key is invalid. Please check your API key configuration.');
       } else if (transcriptionResponse.status === 413) {
@@ -105,9 +156,10 @@ serve(async (req) => {
       );
     }
 
-    // Step 2: Parse expenses using GPT with improved prompt
-    console.log('Sending to OpenAI for expense parsing...');
-    const parseResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Step 2: Parse expenses using GPT with retry logic
+    console.log('Sending to OpenAI for expense parsing with retry logic...');
+    
+    const parseResponse = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openAIKey}`,
@@ -141,7 +193,7 @@ Rules:
         temperature: 0.1,
         max_tokens: 500,
       }),
-    });
+    }, 3); // Max 3 retries for parsing
 
     console.log('Parse response status:', parseResponse.status);
 
@@ -150,7 +202,7 @@ Rules:
       console.error('OpenAI parsing error:', errorText);
       
       if (parseResponse.status === 429) {
-        throw new Error('OpenAI API rate limit exceeded during parsing. Please try again in a few minutes.');
+        throw new Error('OpenAI API rate limit exceeded during parsing. The system will automatically retry.');
       } else if (parseResponse.status === 401) {
         throw new Error('OpenAI API key is invalid during parsing. Please check your API key configuration.');
       } else {

@@ -123,13 +123,16 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error processing audio:', error);
       
-      // Provide more helpful error messages
+      // Provide more helpful error messages with rate limit handling
       let errorMessage = 'Failed to process voice recording';
       
-      if (error.message.includes('rate limit')) {
-        errorMessage = 'OpenAI API rate limit reached. Please wait a moment and try again.';
+      if (error.message.includes('rate limit') || error.message.includes('automatically retry')) {
+        errorMessage = 'OpenAI API is currently busy. The system will automatically retry your request. Please wait a moment and try again.';
+        toast.info(errorMessage);
+        // Don't show as error for rate limits since it will retry
+        return;
       } else if (error.message.includes('quota') || error.message.includes('insufficient_quota')) {
-        errorMessage = 'OpenAI API quota exceeded. Please check your OpenAI account at platform.openai.com';
+        errorMessage = 'OpenAI API quota exceeded. Please check your OpenAI account at platform.openai.com/usage';
       } else if (error.message.includes('invalid') && error.message.includes('key')) {
         errorMessage = 'OpenAI API key issue. Please contact support.';
       } else if (error.message.includes('too large')) {
