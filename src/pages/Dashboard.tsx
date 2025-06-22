@@ -80,31 +80,40 @@ const Dashboard = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzbHdjZ2pnemV6cHRvYmxja3VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjg4MjcsImV4cCI6MjA2NTk0NDgyN30.YArFJ4YmE6c_E-ieRhTwqzhcEl8_sJgS_8-ukbkWarc'}`,
+            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzbHdjZ2pnemV6cHRvYmxja3VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjg4MjcsImV4cCI6MjA2NTk0NDgyN30.YArFJ4YmE6c_E-ieRhTwqzhcEl8_sJgS_8-ukbkWarc`,
           },
           body: JSON.stringify({ audio: base64Audio }),
         });
 
         if (!response.ok) {
-          throw new Error(`Processing failed: ${response.statusText}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Processing failed: ${response.statusText}`);
         }
 
         const result = await response.json();
         console.log('Processing result:', result);
 
-        if (result.expenses && result.expenses.length > 0) {
-          addBulkExpenses(result.expenses);
-          toast.success(`Found ${result.expenses.length} expenses: "${result.transcription}"`);
-        } else {
-          toast.info(`Transcribed: "${result.transcription}" - No expenses detected. Try saying something like "Coffee 5 EGP"`);
+        if (result.error) {
+          throw new Error(result.error);
         }
 
-        setIsVoiceModalOpen(false);
-        clearRecording();
+        if (result.expenses && result.expenses.length > 0) {
+          console.log('Adding expenses:', result.expenses);
+          addBulkExpenses(result.expenses);
+          toast.success(`Added ${result.expenses.length} expenses from: "${result.transcription}"`);
+          setIsVoiceModalOpen(false);
+          clearRecording();
+        } else {
+          toast.info(`Transcribed: "${result.transcription}" - No expenses detected. Try saying something like "Coffee 5 dollars, lunch 15 dollars"`);
+        }
+      };
+
+      reader.onerror = () => {
+        throw new Error('Failed to read audio data');
       };
     } catch (error) {
       console.error('Error processing audio:', error);
-      toast.error('Failed to process voice recording. Please try again.');
+      toast.error(`Failed to process voice recording: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
