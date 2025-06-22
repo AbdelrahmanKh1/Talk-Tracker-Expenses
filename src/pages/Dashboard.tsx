@@ -75,6 +75,7 @@ const Dashboard = () => {
         }
 
         console.log('Sending audio for processing...');
+        console.log('Audio size:', audioBlob.size, 'bytes');
         
         const response = await fetch(`https://rslwcgjgzezptoblckua.supabase.co/functions/v1/process-voice`, {
           method: 'POST',
@@ -85,8 +86,11 @@ const Dashboard = () => {
           body: JSON.stringify({ audio: base64Audio }),
         });
 
+        console.log('Response status:', response.status);
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
+          console.error('Processing failed:', errorData);
           throw new Error(errorData.error || `Processing failed: ${response.statusText}`);
         }
 
@@ -104,7 +108,10 @@ const Dashboard = () => {
           setIsVoiceModalOpen(false);
           clearRecording();
         } else {
-          toast.info(`Transcribed: "${result.transcription}" - No expenses detected. Try saying something like "Coffee 5 dollars, lunch 15 dollars"`);
+          const message = result.transcription ? 
+            `Transcribed: "${result.transcription}" - No expenses detected. Try saying something like "Coffee 5 dollars, lunch 15 dollars"` :
+            'No speech detected. Please try recording again with clearer audio.';
+          toast.info(message);
         }
       };
 
@@ -113,7 +120,22 @@ const Dashboard = () => {
       };
     } catch (error) {
       console.error('Error processing audio:', error);
-      toast.error(`Failed to process voice recording: ${error.message}`);
+      
+      // Provide more helpful error messages
+      let errorMessage = 'Failed to process voice recording';
+      if (error.message.includes('rate limit')) {
+        errorMessage = 'OpenAI API rate limit reached. Please wait a moment and try again.';
+      } else if (error.message.includes('quota')) {
+        errorMessage = 'OpenAI API quota exceeded. Please check your OpenAI account billing.';
+      } else if (error.message.includes('invalid') && error.message.includes('key')) {
+        errorMessage = 'OpenAI API key issue. Please contact support.';
+      } else if (error.message.includes('too large')) {
+        errorMessage = 'Audio recording is too long. Please record a shorter message.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsProcessing(false);
     }
