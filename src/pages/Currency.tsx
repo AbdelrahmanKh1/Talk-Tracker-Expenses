@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -23,23 +24,16 @@ const currencies: Currency[] = [
 
 const Currency = () => {
   const navigate = useNavigate();
-  // Load initial currency from localStorage
-  const stored = localStorage.getItem('selectedCurrency');
-  const initialCurrency = stored ? JSON.parse(stored).code : 'EGP';
-  const [selectedCurrency, setSelectedCurrency] = useState(initialCurrency);
-  const [pendingCurrency, setPendingCurrency] = useState(initialCurrency);
+  const [selectedCurrency, setSelectedCurrency] = useState('EGP');
 
   const handleCurrencySelect = (currency: Currency) => {
-    setPendingCurrency(currency.code);
-  };
-
-  const handleSave = () => {
-    const currencyObj = currencies.find(c => c.code === pendingCurrency);
-    if (currencyObj) {
-      localStorage.setItem('selectedCurrency', JSON.stringify(currencyObj));
-      setSelectedCurrency(pendingCurrency);
+    setSelectedCurrency(currency.code);
+    // Store selected currency in localStorage
+    localStorage.setItem('selectedCurrency', JSON.stringify(currency));
+    // Navigate back after a short delay
+    setTimeout(() => {
       navigate('/dashboard');
-    }
+    }, 300);
   };
 
   return (
@@ -61,7 +55,7 @@ const Currency = () => {
             <button
               key={currency.code}
               onClick={() => handleCurrencySelect(currency)}
-              className={`w-full flex items-center justify-between p-4 bg-white rounded-2xl hover:bg-gray-50 transition-colors ${pendingCurrency === currency.code ? 'border-2 border-teal-500' : ''}`}
+              className="w-full flex items-center justify-between p-4 bg-white rounded-2xl hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <span className="text-2xl">{currency.flag}</span>
@@ -72,21 +66,12 @@ const Currency = () => {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-gray-600">{currency.symbol}</span>
-                {pendingCurrency === currency.code && (
+                {selectedCurrency === currency.code && (
                   <Check className="w-5 h-5 text-teal-500" />
                 )}
               </div>
             </button>
           ))}
-        </div>
-        <div className="mt-8">
-          <Button
-            className="w-full py-3 text-base rounded-2xl"
-            onClick={handleSave}
-            disabled={pendingCurrency === selectedCurrency}
-          >
-            Save Changes
-          </Button>
         </div>
       </div>
     </div>

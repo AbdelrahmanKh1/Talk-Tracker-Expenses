@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Plus } from 'lucide-react';
 import SwipeableExpenseItem from './SwipeableExpenseItem';
@@ -40,15 +41,8 @@ const RecentExpensesList = ({
       </div>
       
       {expenses.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 text-center text-gray-500 flex flex-col items-center justify-center shadow-md">
-          <svg width="48" height="48" fill="none" viewBox="0 0 24 24" className="mb-2 opacity-60">
-            <rect x="3" y="4" width="18" height="16" rx="2" stroke="#0d9488" strokeWidth="2"/>
-            <line x1="16" y1="2" x2="16" y2="6" stroke="#0d9488" strokeWidth="2"/>
-            <line x1="8" y1="2" x2="8" y2="6" stroke="#0d9488" strokeWidth="2"/>
-            <line x1="3" y1="10" x2="21" y2="10" stroke="#0d9488" strokeWidth="2"/>
-          </svg>
-          <p className="mb-1 font-medium">No expenses for this month</p>
-          <p className="text-xs text-gray-400">Start by adding your first expense!</p>
+        <div className="bg-white rounded-2xl p-6 text-center text-gray-500">
+          <p>No expenses yet. Add your first expense!</p>
         </div>
       ) : (
         <div className="space-y-3">

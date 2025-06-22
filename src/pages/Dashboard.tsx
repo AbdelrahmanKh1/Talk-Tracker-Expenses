@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
@@ -74,8 +75,6 @@ const Dashboard = () => {
         }
 
         console.log('Sending audio for processing...');
-        console.log('Audio size:', audioBlob.size, 'bytes');
-        console.log('Base64 audio length:', base64Audio.length);
         
         const response = await fetch(`https://rslwcgjgzezptoblckua.supabase.co/functions/v1/process-voice`, {
           method: 'POST',
@@ -86,12 +85,8 @@ const Dashboard = () => {
           body: JSON.stringify({ audio: base64Audio }),
         });
 
-        console.log('Response status:', response.status);
-        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          console.error('Processing failed:', errorData);
           throw new Error(errorData.error || `Processing failed: ${response.statusText}`);
         }
 
@@ -109,10 +104,7 @@ const Dashboard = () => {
           setIsVoiceModalOpen(false);
           clearRecording();
         } else {
-          const message = result.transcription ? 
-            `Transcribed: "${result.transcription}" - No expenses detected. Try saying something like "Coffee 5 dollars, lunch 15 dollars"` :
-            'No speech detected. Please try recording again with clearer audio.';
-          toast.info(message);
+          toast.info(`Transcribed: "${result.transcription}" - No expenses detected. Try saying something like "Coffee 5 dollars, lunch 15 dollars"`);
         }
       };
 
@@ -121,49 +113,13 @@ const Dashboard = () => {
       };
     } catch (error) {
       console.error('Error processing audio:', error);
-      
-      // Provide more helpful error messages with rate limit handling
-      let errorMessage = 'Failed to process voice recording';
-      
-      if (error.message.includes('rate limit') || error.message.includes('automatically retry')) {
-        errorMessage = 'OpenAI API is currently busy. The system will automatically retry your request. Please wait a moment and try again.';
-        toast.info(errorMessage);
-        // Don't show as error for rate limits since it will retry
-        return;
-      } else if (error.message.includes('quota') || error.message.includes('insufficient_quota')) {
-        errorMessage = 'OpenAI API quota exceeded. Please check your OpenAI account at platform.openai.com/usage';
-      } else if (error.message.includes('invalid') && error.message.includes('key')) {
-        errorMessage = 'OpenAI API key issue. Please contact support.';
-      } else if (error.message.includes('too large')) {
-        errorMessage = 'Audio recording is too long. Please record a shorter message.';
-      } else if (error.message.includes('Bad request')) {
-        errorMessage = 'Invalid audio format. Please try recording again.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      toast.error(errorMessage);
-      console.log('Full error details:', error);
+      toast.error(`Failed to process voice recording: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Set default selected month to current month and year
-  const getCurrentMonthYear = () => {
-    const now = new Date();
-    return now.toLocaleString('en-US', { month: 'short', year: 'numeric' });
-  };
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthYear());
-
-  // Filter expenses for the selected month
-  const filteredExpenses = expenses.filter(expense => {
-    const expenseDate = new Date(expense.date);
-    const expenseMonth = expenseDate.toLocaleString('en-US', { month: 'short', year: 'numeric' });
-    return expenseMonth === selectedMonth;
-  });
-
-  const monthlyTotal = getMonthlyTotal(selectedMonth);
+  const monthlyTotal = getMonthlyTotal();
   const recentExpenses = getRecentExpenses();
 
   if (isLoading) {
@@ -192,7 +148,7 @@ const Dashboard = () => {
         />
 
         <RecentExpensesList
-          expenses={filteredExpenses}
+          expenses={recentExpenses}
           onAddExpense={() => setIsAddModalOpen(true)}
           onEditExpense={handleExpenseEdit}
           onDeleteExpense={handleExpenseDelete}
@@ -222,10 +178,7 @@ const Dashboard = () => {
         audioBlob={audioBlob}
         isProcessing={isProcessing || isAddingBulkExpenses}
         onStartRecording={startRecording}
-        onStopRecording={async () => {
-          stopRecording();
-          await handleProcessAudio();
-        }}
+        onStopRecording={stopRecording}
         onClearRecording={clearRecording}
         onProcessAudio={handleProcessAudio}
       />
