@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 
@@ -8,12 +7,20 @@ interface MonthSelectorProps {
 }
 
 const MonthSelector = ({ selectedMonth, onMonthSelect }: MonthSelectorProps) => {
-  const months = [
-    { label: 'Jun', year: '2025', active: selectedMonth === 'Jun 2025' },
-    { label: 'May', year: '2025', active: selectedMonth === 'May 2025' },
-    { label: 'Apr', year: '2025', active: selectedMonth === 'Apr 2025' },
-    { label: 'Mar', year: '2025', active: selectedMonth === 'Mar 2025' },
-  ];
+  const getLast12Months = () => {
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = date.toLocaleString('en-US', { month: 'short' });
+      const year = date.getFullYear();
+      const value = `${label} ${year}`;
+      months.push({ label, year, value, active: value === selectedMonth });
+    }
+    return months.reverse(); // so oldest is left, newest is right
+  };
+
+  const months = getLast12Months();
 
   return (
     <div>
@@ -39,7 +46,7 @@ const MonthSelector = ({ selectedMonth, onMonthSelect }: MonthSelectorProps) => 
                 ? "bg-teal-500 hover:bg-teal-600 text-white" 
                 : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
             }`}
-            onClick={() => onMonthSelect(`${month.label} ${month.year}`)}
+            onClick={() => onMonthSelect(month.value)}
           >
             <div className="text-center">
               <div className="font-medium">{month.label}</div>

@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -10,8 +9,8 @@ const corsHeaders = {
 // Exponential backoff utility function
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
+  maxRetries: number = 5,
+  baseDelay: number = 2000
 ): Promise<T> {
   let lastError: Error;
   
@@ -27,7 +26,11 @@ async function retryWithBackoff<T>(
       }
       
       if (attempt === maxRetries) {
-        throw error;
+        // Return a user-friendly error message if all retries fail
+        return new Response(
+          JSON.stringify({ error: 'OpenAI API is currently busy. Please wait a moment and try again.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        ) as unknown as T;
       }
       
       // Calculate delay with exponential backoff
@@ -99,54 +102,36 @@ serve(async (req) => {
       throw new Error('Invalid audio data format');
     }
 
-    // Step 1: Transcribe audio with retry logic
-    const formData = new FormData();
-    const blob = new Blob([binaryAudio], { type: 'audio/webm' });
-    formData.append('file', blob, 'audio.webm');
-    formData.append('model', 'whisper-1');
-
-    console.log('Sending to OpenAI for transcription with retry logic...');
-    console.log('Blob size:', blob.size);
-
-    const transcriptionResponse = await fetchWithRetry('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIKey}`,
-      },
-      body: formData,
-    }, 3); // Max 3 retries for transcription
-
-    console.log('Transcription response status:', transcriptionResponse.status);
-
-    if (!transcriptionResponse.ok) {
-      const errorText = await transcriptionResponse.text();
-      console.error('OpenAI transcription error:', errorText);
-      
-      let errorDetails;
-      try {
-        errorDetails = JSON.parse(errorText);
-      } catch {
-        errorDetails = { error: { message: errorText } };
-      }
-      
-      if (transcriptionResponse.status === 429) {
-        throw new Error('OpenAI API rate limit exceeded. The system will automatically retry. Please wait a moment.');
-      } else if (transcriptionResponse.status === 401) {
-        throw new Error('OpenAI API key is invalid. Please check your API key configuration.');
-      } else if (transcriptionResponse.status === 413) {
-        throw new Error('Audio file is too large. Please record a shorter message.');
-      } else if (transcriptionResponse.status === 400) {
-        const message = errorDetails?.error?.message || 'Bad request to OpenAI API';
-        throw new Error(`OpenAI API error: ${message}`);
-      } else {
-        throw new Error(`Transcription failed: ${transcriptionResponse.status} - ${errorDetails?.error?.message || errorText}`);
-      }
+    // Step 1: Transcribe audio with Deepgram API
+    const deepgramApiKey = Deno.env.get('DEEPGRAM_API_KEY');
+    if (!deepgramApiKey) {
+      console.error('Deepgram API key not found in environment');
+      throw new Error('Deepgram API key not configured');
     }
 
-    const transcription = await transcriptionResponse.json();
-    console.log('Transcribed text:', transcription.text);
+    // Send audio to Deepgram
+    const deepgramResponse = await fetch('https://api.deepgram.com/v1/listen', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${deepgramApiKey}`,
+        'Content-Type': 'audio/webm',
+      },
+      body: binaryAudio,
+    });
 
-    if (!transcription.text || transcription.text.trim().length === 0) {
+    console.log('Deepgram transcription response status:', deepgramResponse.status);
+
+    if (!deepgramResponse.ok) {
+      const errorText = await deepgramResponse.text();
+      console.error('Deepgram transcription error:', errorText);
+      throw new Error(`Deepgram transcription failed: ${deepgramResponse.status} - ${errorText}`);
+    }
+
+    const deepgramResult = await deepgramResponse.json();
+    const transcriptionText = deepgramResult.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+    console.log('Transcribed text:', transcriptionText);
+
+    if (!transcriptionText || transcriptionText.trim().length === 0) {
       return new Response(
         JSON.stringify({ 
           transcription: 'No speech detected',
@@ -166,7 +151,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -187,7 +172,7 @@ Rules:
           },
           {
             role: 'user',
-            content: `Parse this expense text: "${transcription.text}"`
+            content: `Parse this expense text: "${transcriptionText}"`
           }
         ],
         temperature: 0.1,
@@ -261,7 +246,7 @@ Rules:
 
     return new Response(
       JSON.stringify({ 
-        transcription: transcription.text,
+        transcription: transcriptionText,
         expenses: expenses 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

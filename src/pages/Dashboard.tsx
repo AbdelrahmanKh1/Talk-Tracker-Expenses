@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
@@ -150,7 +149,21 @@ const Dashboard = () => {
     }
   };
 
-  const monthlyTotal = getMonthlyTotal();
+  // Set default selected month to current month and year
+  const getCurrentMonthYear = () => {
+    const now = new Date();
+    return now.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+  };
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthYear());
+
+  // Filter expenses for the selected month
+  const filteredExpenses = expenses.filter(expense => {
+    const expenseDate = new Date(expense.date);
+    const expenseMonth = expenseDate.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+    return expenseMonth === selectedMonth;
+  });
+
+  const monthlyTotal = getMonthlyTotal(selectedMonth);
   const recentExpenses = getRecentExpenses();
 
   if (isLoading) {
@@ -179,7 +192,7 @@ const Dashboard = () => {
         />
 
         <RecentExpensesList
-          expenses={recentExpenses}
+          expenses={filteredExpenses}
           onAddExpense={() => setIsAddModalOpen(true)}
           onEditExpense={handleExpenseEdit}
           onDeleteExpense={handleExpenseDelete}
@@ -209,7 +222,10 @@ const Dashboard = () => {
         audioBlob={audioBlob}
         isProcessing={isProcessing || isAddingBulkExpenses}
         onStartRecording={startRecording}
-        onStopRecording={stopRecording}
+        onStopRecording={async () => {
+          stopRecording();
+          await handleProcessAudio();
+        }}
         onClearRecording={clearRecording}
         onProcessAudio={handleProcessAudio}
       />
