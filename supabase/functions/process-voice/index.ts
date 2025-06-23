@@ -1,7 +1,7 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
-import { GoogleAuth } from 'https://esm.sh/google-auth-library@9.0.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,78 +44,109 @@ serve(async (req) => {
 
     console.log('Processing voice input for user:', user.id);
 
+    // Check if AssemblyAI API key is available
+    const assemblyAIKey = Deno.env.get('ASSEMBLYAI_API_KEY');
+    if (!assemblyAIKey) {
+      throw new Error('AssemblyAI API key not configured');
+    }
+
     // Convert base64 to binary with better error handling
     let binaryAudio;
-    let mimeType = 'audio/webm';
     try {
-      // Extract MIME type and base64 data from data URL
-      if (audio.startsWith('data:')) {
-        const match = audio.match(/^data:(.*?);base64,(.*)$/);
-        if (!match) throw new Error('Invalid data URL format');
-        mimeType = match[1];
-        binaryAudio = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
-      } else {
-        // Fallback: treat as plain base64
-        binaryAudio = Uint8Array.from(atob(audio), c => c.charCodeAt(0));
-      }
+      // Remove data URL prefix if present
+      const base64Data = audio.includes(',') ? audio.split(',')[1] : audio;
+      binaryAudio = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
     } catch (error) {
       throw new Error('Invalid audio data format');
     }
 
     console.log('Audio data size:', binaryAudio.length, 'bytes');
-    console.log('Audio MIME type:', mimeType);
 
-    // Check if Google credentials are available
-    const googleCredsJson = Deno.env.get('GOOGLE_APPLICATION_CREDENTIALS_JSON');
-    if (!googleCredsJson) {
-      throw new Error('Google service account credentials not configured');
-    }
+    // Step 1: Upload audio to AssemblyAI
+    const uploadFormData = new FormData();
+    const blob = new Blob([binaryAudio], { type: 'audio/webm' });
+    uploadFormData.append('file', blob, 'audio.webm');
 
-    // Authenticate with Google
-    const auth = new GoogleAuth({
-      credentials: JSON.parse(googleCredsJson),
-      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+    console.log('Uploading audio to AssemblyAI...');
+    const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': assemblyAIKey,
+      },
+      body: uploadFormData,
     });
-    const client = await auth.getClient();
-    const projectId = JSON.parse(googleCredsJson).project_id;
 
-    // Prepare audio for Google API (base64-encoded string)
-    const audioContent = btoa(String.fromCharCode(...binaryAudio));
-
-    // Call Google Speech-to-Text API
-    const googleApiUrl = `https://speech.googleapis.com/v1/speech:recognize?key=${JSON.parse(googleCredsJson).private_key_id}`;
-    const requestBody = {
-      config: {
-        encoding: mimeType.includes('webm') ? 'WEBM_OPUS' : 'LINEAR16',
-        sampleRateHertz: 44100,
-        languageCode: 'en-US',
-      },
-      audio: {
-        content: audioContent,
-      },
-    };
-
-    const googleResponse = await fetch(
-      `https://speech.googleapis.com/v1/speech:recognize`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await client.getAccessToken()}`,
-        },
-        body: JSON.stringify(requestBody),
-      }
-    );
-
-    if (!googleResponse.ok) {
-      const errorText = await googleResponse.text();
-      throw new Error(`Google Speech-to-Text error: ${errorText}`);
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('AssemblyAI upload error:', errorText);
+      throw new Error(`Audio upload failed: ${uploadResponse.status} - ${errorText}`);
     }
 
-    const googleResult = await googleResponse.json();
-    const transcriptText = googleResult.results?.map(r => r.alternatives[0].transcript).join(' ') || '';
+    const uploadResult = await uploadResponse.json();
+    console.log('Audio uploaded successfully:', uploadResult.upload_url);
 
-    if (!transcriptText || transcriptText.trim().length === 0) {
+    // Step 2: Request transcription
+    console.log('Requesting transcription...');
+    const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
+      method: 'POST',
+      headers: {
+        'Authorization': assemblyAIKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        audio_url: uploadResult.upload_url,
+        speech_model: 'universal',
+      }),
+    });
+
+    if (!transcriptResponse.ok) {
+      const errorText = await transcriptResponse.text();
+      console.error('AssemblyAI transcription request error:', errorText);
+      throw new Error(`Transcription request failed: ${transcriptResponse.status} - ${errorText}`);
+    }
+
+    const transcriptRequest = await transcriptResponse.json();
+    console.log('Transcription requested, ID:', transcriptRequest.id);
+
+    // Step 3: Poll for transcription completion
+    let transcript;
+    let attempts = 0;
+    const maxAttempts = 60; // 5 minutes max wait time
+
+    while (attempts < maxAttempts) {
+      console.log(`Checking transcription status (attempt ${attempts + 1}/${maxAttempts})...`);
+      
+      const statusResponse = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptRequest.id}`, {
+        headers: {
+          'Authorization': assemblyAIKey,
+        },
+      });
+
+      if (!statusResponse.ok) {
+        throw new Error(`Status check failed: ${statusResponse.status}`);
+      }
+
+      transcript = await statusResponse.json();
+      
+      if (transcript.status === 'completed') {
+        console.log('Transcription completed successfully');
+        break;
+      } else if (transcript.status === 'error') {
+        throw new Error(`Transcription failed: ${transcript.error}`);
+      }
+
+      // Wait 5 seconds before next check
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      attempts++;
+    }
+
+    if (!transcript || transcript.status !== 'completed') {
+      throw new Error('Transcription timed out or failed');
+    }
+
+    console.log('Transcribed text:', transcript.text);
+
+    if (!transcript.text || transcript.text.trim().length === 0) {
       return new Response(
         JSON.stringify({ 
           transcription: 'No speech detected',
@@ -126,7 +157,7 @@ serve(async (req) => {
     }
 
     // Step 4: Parse expenses using simple regex and keyword matching
-    const text = transcriptText.toLowerCase();
+    const text = transcript.text.toLowerCase();
     const expenses = [];
 
     // Common expense patterns and categories
@@ -188,31 +219,10 @@ serve(async (req) => {
 
     console.log('Parsed expenses:', uniqueExpenses);
 
-    // Insert expenses into the database
-    const insertedExpenses = [];
-    for (const expense of uniqueExpenses) {
-      const { data, error } = await supabase.from('expenses').insert([
-        {
-          user_id: user.id,
-          amount: expense.amount,
-          description: expense.description,
-          category: expense.category,
-          // date and created_at will use defaults
-        }
-      ]).select();
-      if (error) {
-        console.error('Error inserting expense:', error);
-        continue; // Skip this expense but continue with others
-      }
-      if (data && data.length > 0) {
-        insertedExpenses.push(data[0]);
-      }
-    }
-
     return new Response(
       JSON.stringify({ 
-        transcription: transcriptText,
-        expenses: insertedExpenses 
+        transcription: transcript.text,
+        expenses: uniqueExpenses 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
