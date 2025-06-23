@@ -71,6 +71,10 @@ const Dashboard = () => {
     setSelectedExpense(null);
   };
 
+  const handleAddExpense = (data: { description: string; amount: number; category?: string }) => {
+    addExpense({ ...data, selectedMonth });
+  };
+
   const handleProcessAudio = async () => {
     if (!audioBlob || !session) {
       console.error('No audio blob or session available');
@@ -124,7 +128,7 @@ const Dashboard = () => {
 
         if (result.expenses && result.expenses.length > 0) {
           console.log('Adding expenses:', result.expenses);
-          addBulkExpenses(result.expenses);
+          addBulkExpenses({ expenses: result.expenses, selectedMonth });
           toast.success(`Added ${result.expenses.length} expenses from: "${result.transcription}"`);
           setIsVoiceModalOpen(false);
           clearRecording();
@@ -185,8 +189,9 @@ const Dashboard = () => {
       <DashboardModals
         isAddModalOpen={isAddModalOpen}
         onAddModalClose={() => setIsAddModalOpen(false)}
-        onAddExpense={addExpense}
+        onAddExpense={handleAddExpense}
         isAddingExpense={isAddingExpense}
+        selectedMonth={selectedMonth}
         
         isEditModalOpen={isEditModalOpen}
         onEditModalClose={() => {

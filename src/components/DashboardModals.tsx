@@ -9,6 +9,7 @@ interface DashboardModalsProps {
   onAddModalClose: () => void;
   onAddExpense: (data: { description: string; amount: number; category?: string }) => void;
   isAddingExpense: boolean;
+  selectedMonth?: string;
   
   isEditModalOpen: boolean;
   onEditModalClose: () => void;
@@ -32,6 +33,7 @@ const DashboardModals = ({
   onAddModalClose,
   onAddExpense,
   isAddingExpense,
+  selectedMonth,
   
   isEditModalOpen,
   onEditModalClose,
@@ -56,6 +58,7 @@ const DashboardModals = ({
         onClose={onAddModalClose}
         onAdd={onAddExpense}
         isLoading={isAddingExpense}
+        selectedMonth={selectedMonth}
       />
 
       <EditExpenseModal

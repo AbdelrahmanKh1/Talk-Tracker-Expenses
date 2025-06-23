@@ -10,9 +10,16 @@ interface AddExpenseModalProps {
   onClose: () => void;
   onAdd: (data: { description: string; amount: number; category?: string }) => void;
   isLoading: boolean;
+  selectedMonth?: string;
 }
 
-const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAdd, isLoading }) => {
+const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onAdd, 
+  isLoading,
+  selectedMonth 
+}) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Miscellaneous');
@@ -52,7 +59,14 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Add Expense</h2>
+          <div>
+            <h2 className="text-xl font-semibold">Add Expense</h2>
+            {selectedMonth && (
+              <p className="text-sm text-gray-600 mt-1">
+                Adding to {selectedMonth}
+              </p>
+            )}
+          </div>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
             <X className="w-5 h-5" />
           </button>

@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,8 +40,28 @@ export const useExpenses = () => {
   });
 
   const addExpenseMutation = useMutation({
-    mutationFn: async ({ description, amount, category }: { description: string; amount: number; category?: string }) => {
+    mutationFn: async ({ 
+      description, 
+      amount, 
+      category, 
+      selectedMonth 
+    }: { 
+      description: string; 
+      amount: number; 
+      category?: string;
+      selectedMonth?: string;
+    }) => {
       if (!user) throw new Error('User not authenticated');
+
+      // Convert selected month to date if provided
+      let expenseDate = new Date().toISOString().split('T')[0]; // default to today
+      
+      if (selectedMonth) {
+        const [monthName, year] = selectedMonth.split(' ');
+        const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth();
+        const targetYear = parseInt(year);
+        expenseDate = new Date(targetYear, monthIndex, 1).toISOString().split('T')[0];
+      }
 
       const { data, error } = await supabase
         .from('expenses')
@@ -49,7 +70,7 @@ export const useExpenses = () => {
           description,
           amount,
           category: category || 'Miscellaneous',
-          date: new Date().toISOString().split('T')[0],
+          date: expenseDate,
         })
         .select()
         .single();
@@ -68,16 +89,31 @@ export const useExpenses = () => {
   });
 
   const addBulkExpensesMutation = useMutation({
-    mutationFn: async (expenses: { description: string; amount: number; category?: string }[]) => {
+    mutationFn: async ({ 
+      expenses, 
+      selectedMonth 
+    }: { 
+      expenses: { description: string; amount: number; category?: string }[];
+      selectedMonth?: string;
+    }) => {
       if (!user) throw new Error('User not authenticated');
 
-      const currentDate = new Date().toISOString().split('T')[0];
+      // Convert selected month to date if provided
+      let expenseDate = new Date().toISOString().split('T')[0]; // default to today
+      
+      if (selectedMonth) {
+        const [monthName, year] = selectedMonth.split(' ');
+        const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth();
+        const targetYear = parseInt(year);
+        expenseDate = new Date(targetYear, monthIndex, 1).toISOString().split('T')[0];
+      }
+
       const expensesToInsert = expenses.map(expense => ({
         user_id: user.id,
         description: expense.description,
         amount: expense.amount,
         category: expense.category || 'Miscellaneous',
-        date: currentDate,
+        date: expenseDate,
       }));
 
       const { data, error } = await supabase
