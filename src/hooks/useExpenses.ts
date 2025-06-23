@@ -49,7 +49,7 @@ export const useExpenses = () => {
           description,
           amount,
           category: category || 'Miscellaneous',
-          date: new Date().toISOString().split('T')[0], // Set current date
+          date: new Date().toISOString().split('T')[0],
         })
         .select()
         .single();
@@ -77,7 +77,7 @@ export const useExpenses = () => {
         description: expense.description,
         amount: expense.amount,
         category: expense.category || 'Miscellaneous',
-        date: currentDate, // Set current date for all bulk expenses
+        date: currentDate,
       }));
 
       const { data, error } = await supabase
@@ -108,7 +108,6 @@ export const useExpenses = () => {
     }) => {
       if (!user) throw new Error('User not authenticated');
 
-      // First, delete the original expense
       const { error: deleteError } = await supabase
         .from('expenses')
         .delete()
@@ -117,7 +116,6 @@ export const useExpenses = () => {
 
       if (deleteError) throw deleteError;
 
-      // Then insert the new items with current date
       const currentDate = new Date().toISOString().split('T')[0];
       const expensesToInsert = items.map(item => ({
         user_id: user.id,
@@ -168,31 +166,38 @@ export const useExpenses = () => {
     },
   });
 
-  // Get monthly total for selected month - FIXED TO USE ACTUAL DATE FILTERING
+  // Get monthly total for selected month with proper date parsing
   const getMonthlyTotal = (monthYear?: string) => {
-    const targetMonth = monthYear || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    if (!monthYear) return 0;
+    
+    // Parse the month-year format (e.g., "Dec 2024")
+    const [monthName, year] = monthYear.split(' ');
+    const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth();
+    const targetYear = parseInt(year);
     
     return expenses
       .filter(expense => {
         const expenseDate = new Date(expense.date);
-        const expenseMonth = expenseDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        return expenseMonth === targetMonth;
+        return expenseDate.getMonth() === monthIndex && expenseDate.getFullYear() === targetYear;
       })
       .reduce((total, expense) => total + Number(expense.amount), 0);
   };
 
-  // Get expenses for selected month - NEW FUNCTION FOR PROPER FILTERING
+  // Get expenses for selected month with proper date filtering
   const getExpensesForMonth = (monthYear?: string) => {
-    const targetMonth = monthYear || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    if (!monthYear) return [];
+    
+    // Parse the month-year format (e.g., "Dec 2024")
+    const [monthName, year] = monthYear.split(' ');
+    const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth();
+    const targetYear = parseInt(year);
     
     return expenses
       .filter(expense => {
         const expenseDate = new Date(expense.date);
-        const expenseMonth = expenseDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        return expenseMonth === targetMonth;
+        return expenseDate.getMonth() === monthIndex && expenseDate.getFullYear() === targetYear;
       })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 10); // Show last 10 expenses for the month
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
 
   // Get recent expenses (last 10) - KEEP AS FALLBACK
