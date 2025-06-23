@@ -11,6 +11,7 @@ import MonthSelector from '@/components/MonthSelector';
 import RecentExpensesList from '@/components/RecentExpensesList';
 import VoiceInputFab from '@/components/VoiceInputFab';
 import DashboardModals from '@/components/DashboardModals';
+import { useQueryClient } from '@tanstack/react-query';
 
 const Dashboard = () => {
   const { session } = useAuth();
@@ -54,6 +55,8 @@ const Dashboard = () => {
     setIsProcessing,
   } = useVoiceRecording();
 
+  const queryClient = useQueryClient();
+
   const handleExpenseEdit = (expense: any) => {
     setSelectedExpense(expense);
     setIsEditModalOpen(true);
@@ -88,21 +91,18 @@ const Dashboard = () => {
       reader.readAsDataURL(audioBlob);
       
       reader.onloadend = async () => {
-        const base64Audio = reader.result?.toString().split(',')[1];
-        
-        if (!base64Audio) {
-          throw new Error('Failed to convert audio to base64');
+        const dataUrlAudio = reader.result?.toString();
+        if (!dataUrlAudio) {
+          throw new Error('Failed to convert audio to data URL');
         }
-
         console.log('Sending audio for processing with auth token...');
-        
         const response = await fetch(`https://rslwcgjgzezptoblckua.supabase.co/functions/v1/process-voice`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ audio: base64Audio }),
+          body: JSON.stringify({ audio: dataUrlAudio }),
         });
 
         if (!response.ok) {
@@ -126,21 +126,22 @@ const Dashboard = () => {
           throw new Error(result.error);
         }
 
+        toast.info(`Transcribed: "${result.transcription}"`);
+
         if (result.expenses && result.expenses.length > 0) {
-          console.log('Adding expenses:', result.expenses);
-          addBulkExpenses({ expenses: result.expenses, selectedMonth });
+          await queryClient.invalidateQueries({ queryKey: ['expenses'] });
           toast.success(`Added ${result.expenses.length} expenses from: "${result.transcription}"`);
           setIsVoiceModalOpen(false);
           clearRecording();
         } else {
-          toast.info(`Transcribed: "${result.transcription}" - No expenses detected. Try saying something like "Coffee 5 EGP, lunch 15 EGP"`);
+          toast.info(`No expenses detected. Try saying something like "Coffee 5 EGP, lunch 15 EGP"`);
         }
       };
 
       reader.onerror = () => {
         throw new Error('Failed to read audio data');
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing audio:', error);
       toast.error(`Failed to process voice recording: ${error.message}`);
     } finally {
