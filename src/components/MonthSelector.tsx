@@ -53,22 +53,24 @@ const MonthSelector = ({ selectedMonth, onMonthSelect }: MonthSelectorProps) => 
         <h3 className="text-lg font-semibold">Select Month</h3>
       </div>
       
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
         {months.map((month, index) => (
           <Button
             key={index}
             variant={month.active ? "default" : "outline"}
-            className={`flex-shrink-0 rounded-2xl px-4 py-3 min-w-[100px] ${
+            className={`flex-shrink-0 rounded-2xl px-3 py-4 min-w-[85px] h-auto ${
               month.active 
-                ? "bg-teal-500 hover:bg-teal-600 text-white" 
+                ? "bg-teal-500 hover:bg-teal-600 text-white border-teal-500" 
                 : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
             }`}
             onClick={() => onMonthSelect(month.monthYear)}
           >
-            <div className="text-center">
-              <div className="font-medium">{month.label}</div>
-              <div className="text-sm opacity-80">{month.year}</div>
-              <div className="text-xs mt-1 font-medium">
+            <div className="text-center flex flex-col items-center">
+              <div className="font-medium text-sm">{month.label}</div>
+              <div className="text-xs opacity-75 mb-1">{month.year}</div>
+              <div className={`text-xs font-bold ${
+                month.active ? "text-white" : "text-teal-600"
+              }`}>
                 {month.total > 0 ? `${currency.symbol}${month.total.toFixed(0)}` : `${currency.symbol}0`}
               </div>
             </div>
