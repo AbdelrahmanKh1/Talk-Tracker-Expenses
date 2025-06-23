@@ -108,14 +108,16 @@ const Dashboard = () => {
         if (!response.ok) {
           const errorText = await response.text();
           let errorMessage = 'Processing failed';
-          
           try {
             const errorData = JSON.parse(errorText);
             errorMessage = errorData.error || errorMessage;
           } catch {
             errorMessage = `HTTP ${response.status}: ${response.statusText}`;
           }
-          
+          // Clarify if the error is about missing Google credentials
+          if (errorMessage.includes('Google service account credentials not configured')) {
+            errorMessage = 'Voice transcription is not available: Google Speech credentials are missing on the backend.';
+          }
           throw new Error(errorMessage);
         }
 
