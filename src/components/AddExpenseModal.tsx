@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +7,7 @@ import { X } from 'lucide-react';
 interface AddExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (data: { description: string; amount: number; category?: string }) => void;
+  onAdd: (data: { description: string; amount: number; category?: string; created_at: string }) => void;
   isLoading: boolean;
   selectedMonth?: string;
 }
@@ -40,10 +39,28 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
     e.preventDefault();
     if (!description || !amount) return;
 
+    // Generate created_at with selected month (YYYY-MM) and today's day/time
+    let created_at = new Date().toISOString();
+    if (selectedMonth) {
+      // selectedMonth is like "May 2024"
+      const [monthName, year] = selectedMonth.split(' ');
+      const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth(); // JS months are 0-based
+      const month = (monthIndex + 1).toString().padStart(2, '0'); // for string, add 1
+      const today = new Date();
+      let day = today.getDate();
+      // Clamp day to last valid day of selected month
+      const lastDayOfMonth = new Date(Number(year), monthIndex + 1, 0).getDate();
+      if (day > lastDayOfMonth) day = lastDayOfMonth;
+      const dayStr = day.toString().padStart(2, '0');
+      const time = today.toTimeString().split(' ')[0];
+      created_at = `${year}-${month}-${dayStr}T${time}Z`;
+    }
+
     onAdd({
       description,
       amount: parseFloat(amount),
-      category
+      category,
+      created_at
     });
 
     // Reset form

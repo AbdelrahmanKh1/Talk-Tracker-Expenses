@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -105,13 +104,17 @@ const Settings = () => {
           <h3 className="text-gray-500 text-sm font-medium mb-4 uppercase tracking-wide">About App</h3>
           
           <div className="bg-white rounded-2xl overflow-hidden">
-            <button className="w-full flex items-center justify-between p-4 border-b border-gray-100 hover:bg-gray-50">
+            {/* Privacy Policy */}
+            <button
+              className="w-full flex items-center justify-between p-4 border-b border-gray-100 hover:bg-gray-50"
+              onClick={() => {
+                window.open('https://www.sayapp.net/privacy', '_blank');
+                console.log('Visited Privacy Policy');
+              }}
+            >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="3" stroke="#666" strokeWidth="2"/>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#666" strokeWidth="2"/>
-                  </svg>
+                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-lg">
+                  <span role="img" aria-label="Privacy">🛡️</span>
                 </div>
                 <span className="font-medium">Privacy Policy</span>
               </div>
@@ -120,32 +123,38 @@ const Settings = () => {
               </svg>
             </button>
 
-            <button className="w-full flex items-center justify-between p-4 border-b border-gray-100 hover:bg-gray-50">
+            {/* Visit Website */}
+            <button
+              className="w-full flex items-center justify-between p-4 border-b border-gray-100 hover:bg-gray-50"
+              onClick={() => {
+                window.open('https://www.sayapp.net', '_blank');
+                console.log('Visited Website');
+              }}
+            >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="10" stroke="#666" strokeWidth="2"/>
-                    <path d="M12 16v-4" stroke="#666" strokeWidth="2"/>
-                    <path d="M12 8h.01" stroke="#666" strokeWidth="2"/>
-                  </svg>
+                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-lg">
+                  <span role="img" aria-label="Globe">🌐</span>
                 </div>
-                <span className="font-medium">About App</span>
+                <span className="font-medium">Visit Website</span>
               </div>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M9 18l6-6-6-6" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
 
-            <button className="w-full flex items-center justify-between p-4 hover:bg-gray-50">
+            {/* FAQs */}
+            <button
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
+              onClick={() => {
+                window.open('https://www.sayapp.net/#faq', '_blank');
+                console.log('Visited FAQ');
+              }}
+            >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="10" stroke="#666" strokeWidth="2"/>
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="#666" strokeWidth="2"/>
-                    <path d="M12 17h.01" stroke="#666" strokeWidth="2"/>
-                  </svg>
+                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-lg">
+                  <span role="img" aria-label="Question">❓</span>
                 </div>
-                <span className="font-medium">FAQ</span>
+                <span className="font-medium">FAQs</span>
               </div>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M9 18l6-6-6-6" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

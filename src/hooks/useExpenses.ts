@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,12 +43,14 @@ export const useExpenses = () => {
       description, 
       amount, 
       category, 
-      selectedMonth 
+      selectedMonth, 
+      created_at 
     }: { 
       description: string; 
       amount: number; 
       category?: string;
       selectedMonth?: string;
+      created_at?: string;
     }) => {
       if (!user) throw new Error('User not authenticated');
 
@@ -71,6 +72,7 @@ export const useExpenses = () => {
           amount,
           category: category || 'Miscellaneous',
           date: expenseDate,
+          created_at: created_at || new Date().toISOString(),
         })
         .select()
         .single();
@@ -140,9 +142,18 @@ export const useExpenses = () => {
       items 
     }: { 
       expenseId: string; 
-      items: { description: string; amount: number; category: string }[] 
+      items: { description: string; amount: number; category: string; created_at?: string; date?: string }[] 
     }) => {
       if (!user) throw new Error('User not authenticated');
+
+      // Fetch the original expense to preserve created_at and date
+      const { data: originalExpense, error: fetchError } = await supabase
+        .from('expenses')
+        .select('created_at, date')
+        .eq('id', expenseId)
+        .eq('user_id', user.id)
+        .single();
+      if (fetchError) throw fetchError;
 
       const { error: deleteError } = await supabase
         .from('expenses')
@@ -152,13 +163,13 @@ export const useExpenses = () => {
 
       if (deleteError) throw deleteError;
 
-      const currentDate = new Date().toISOString().split('T')[0];
       const expensesToInsert = items.map(item => ({
         user_id: user.id,
         description: item.description,
         amount: item.amount,
         category: item.category,
-        date: currentDate,
+        date: item.date || originalExpense.date,
+        created_at: item.created_at || originalExpense.created_at,
       }));
 
       const { data, error } = await supabase
@@ -213,7 +224,7 @@ export const useExpenses = () => {
     
     return expenses
       .filter(expense => {
-        const expenseDate = new Date(expense.date);
+        const expenseDate = new Date(expense.created_at);
         return expenseDate.getMonth() === monthIndex && expenseDate.getFullYear() === targetYear;
       })
       .reduce((total, expense) => total + Number(expense.amount), 0);
@@ -230,10 +241,10 @@ export const useExpenses = () => {
     
     return expenses
       .filter(expense => {
-        const expenseDate = new Date(expense.date);
+        const expenseDate = new Date(expense.created_at);
         return expenseDate.getMonth() === monthIndex && expenseDate.getFullYear() === targetYear;
       })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   };
 
   // Get recent expenses (last 10) - KEEP AS FALLBACK
