@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
@@ -34,7 +33,16 @@ const Dashboard = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('Jun 2025');
+  
+  // Initialize with current month
+  const getCurrentMonth = () => {
+    const now = new Date();
+    const monthName = now.toLocaleDateString('en-US', { month: 'short' });
+    const year = now.getFullYear();
+    return `${monthName} ${year}`;
+  };
+  
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
 
   const {
     isRecording,
@@ -137,7 +145,6 @@ const Dashboard = () => {
   };
 
   const monthlyTotal = getMonthlyTotal(selectedMonth);
-  // Use month-specific expenses instead of just recent expenses
   const monthExpenses = getExpensesForMonth(selectedMonth);
 
   if (isLoading) {

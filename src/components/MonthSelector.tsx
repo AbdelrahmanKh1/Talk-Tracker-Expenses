@@ -1,6 +1,8 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { useExpenses } from '@/hooks/useExpenses';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface MonthSelectorProps {
   selectedMonth: string;
@@ -8,12 +10,34 @@ interface MonthSelectorProps {
 }
 
 const MonthSelector = ({ selectedMonth, onMonthSelect }: MonthSelectorProps) => {
-  const months = [
-    { label: 'Jun', year: '2025', active: selectedMonth === 'Jun 2025' },
-    { label: 'May', year: '2025', active: selectedMonth === 'May 2025' },
-    { label: 'Apr', year: '2025', active: selectedMonth === 'Apr 2025' },
-    { label: 'Mar', year: '2025', active: selectedMonth === 'Mar 2025' },
-  ];
+  const { getMonthlyTotal } = useExpenses();
+  const { currency } = useCurrency();
+
+  // Generate last 12 months dynamically
+  const generateMonths = () => {
+    const months = [];
+    const currentDate = new Date();
+    
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+      const year = date.getFullYear().toString();
+      const monthYear = `${monthName} ${year}`;
+      const total = getMonthlyTotal(monthYear);
+      
+      months.push({
+        label: monthName,
+        year: year,
+        monthYear: monthYear,
+        total: total,
+        active: selectedMonth === monthYear
+      });
+    }
+    
+    return months;
+  };
+
+  const months = generateMonths();
 
   return (
     <div>
@@ -34,16 +58,19 @@ const MonthSelector = ({ selectedMonth, onMonthSelect }: MonthSelectorProps) => 
           <Button
             key={index}
             variant={month.active ? "default" : "outline"}
-            className={`flex-shrink-0 rounded-2xl px-6 py-3 ${
+            className={`flex-shrink-0 rounded-2xl px-4 py-3 min-w-[100px] ${
               month.active 
                 ? "bg-teal-500 hover:bg-teal-600 text-white" 
                 : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
             }`}
-            onClick={() => onMonthSelect(`${month.label} ${month.year}`)}
+            onClick={() => onMonthSelect(month.monthYear)}
           >
             <div className="text-center">
               <div className="font-medium">{month.label}</div>
               <div className="text-sm opacity-80">{month.year}</div>
+              <div className="text-xs mt-1 font-medium">
+                {month.total > 0 ? `${currency.symbol}${month.total.toFixed(0)}` : `${currency.symbol}0`}
+              </div>
             </div>
           </Button>
         ))}
