@@ -42,7 +42,8 @@ const RecentExpensesList = ({
       
       {expenses.length === 0 ? (
         <div className="bg-white rounded-2xl p-6 text-center text-gray-500">
-          <p>No expenses yet. Add your first expense!</p>
+          <p className="mb-2">No expenses found for this month.</p>
+          <p className="text-sm">Add your first expense or try voice recording!</p>
         </div>
       ) : (
         <div className="space-y-3">

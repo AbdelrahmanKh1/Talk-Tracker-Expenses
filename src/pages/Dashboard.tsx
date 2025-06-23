@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import DashboardHeader from '@/components/DashboardHeader';
 import CurrencyPlanInfo from '@/components/CurrencyPlanInfo';
@@ -12,6 +14,7 @@ import VoiceInputFab from '@/components/VoiceInputFab';
 import DashboardModals from '@/components/DashboardModals';
 
 const Dashboard = () => {
+  const { session } = useAuth();
   const { 
     expenses, 
     isLoading, 
@@ -23,6 +26,7 @@ const Dashboard = () => {
     isUpdatingExpense,
     deleteExpense,
     getMonthlyTotal, 
+    getExpensesForMonth,
     getRecentExpenses 
   } = useExpenses();
   
@@ -60,7 +64,11 @@ const Dashboard = () => {
   };
 
   const handleProcessAudio = async () => {
-    if (!audioBlob) return;
+    if (!audioBlob || !session) {
+      console.error('No audio blob or session available');
+      toast.error('Authentication required');
+      return;
+    }
 
     setIsProcessing(true);
     try {
@@ -74,20 +82,29 @@ const Dashboard = () => {
           throw new Error('Failed to convert audio to base64');
         }
 
-        console.log('Sending audio for processing...');
+        console.log('Sending audio for processing with auth token...');
         
         const response = await fetch(`https://rslwcgjgzezptoblckua.supabase.co/functions/v1/process-voice`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzbHdjZ2pnemV6cHRvYmxja3VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNjg4MjcsImV4cCI6MjA2NTk0NDgyN30.YArFJ4YmE6c_E-ieRhTwqzhcEl8_sJgS_8-ukbkWarc`,
+            'Authorization': `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ audio: base64Audio }),
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `Processing failed: ${response.statusText}`);
+          const errorText = await response.text();
+          let errorMessage = 'Processing failed';
+          
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.error || errorMessage;
+          } catch {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+          
+          throw new Error(errorMessage);
         }
 
         const result = await response.json();
@@ -104,7 +121,7 @@ const Dashboard = () => {
           setIsVoiceModalOpen(false);
           clearRecording();
         } else {
-          toast.info(`Transcribed: "${result.transcription}" - No expenses detected. Try saying something like "Coffee 5 dollars, lunch 15 dollars"`);
+          toast.info(`Transcribed: "${result.transcription}" - No expenses detected. Try saying something like "Coffee 5 EGP, lunch 15 EGP"`);
         }
       };
 
@@ -119,8 +136,9 @@ const Dashboard = () => {
     }
   };
 
-  const monthlyTotal = getMonthlyTotal();
-  const recentExpenses = getRecentExpenses();
+  const monthlyTotal = getMonthlyTotal(selectedMonth);
+  // Use month-specific expenses instead of just recent expenses
+  const monthExpenses = getExpensesForMonth(selectedMonth);
 
   if (isLoading) {
     return (
@@ -148,7 +166,7 @@ const Dashboard = () => {
         />
 
         <RecentExpensesList
-          expenses={recentExpenses}
+          expenses={monthExpenses}
           onAddExpense={() => setIsAddModalOpen(true)}
           onEditExpense={handleExpenseEdit}
           onDeleteExpense={handleExpenseDelete}

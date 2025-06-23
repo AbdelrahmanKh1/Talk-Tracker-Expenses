@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -50,6 +49,7 @@ export const useExpenses = () => {
           description,
           amount,
           category: category || 'Miscellaneous',
+          date: new Date().toISOString().split('T')[0], // Set current date
         })
         .select()
         .single();
@@ -71,11 +71,13 @@ export const useExpenses = () => {
     mutationFn: async (expenses: { description: string; amount: number; category?: string }[]) => {
       if (!user) throw new Error('User not authenticated');
 
+      const currentDate = new Date().toISOString().split('T')[0];
       const expensesToInsert = expenses.map(expense => ({
         user_id: user.id,
         description: expense.description,
         amount: expense.amount,
         category: expense.category || 'Miscellaneous',
+        date: currentDate, // Set current date for all bulk expenses
       }));
 
       const { data, error } = await supabase
@@ -115,12 +117,14 @@ export const useExpenses = () => {
 
       if (deleteError) throw deleteError;
 
-      // Then insert the new items
+      // Then insert the new items with current date
+      const currentDate = new Date().toISOString().split('T')[0];
       const expensesToInsert = items.map(item => ({
         user_id: user.id,
         description: item.description,
         amount: item.amount,
         category: item.category,
+        date: currentDate,
       }));
 
       const { data, error } = await supabase
@@ -164,7 +168,7 @@ export const useExpenses = () => {
     },
   });
 
-  // Get monthly total for selected month
+  // Get monthly total for selected month - FIXED TO USE ACTUAL DATE FILTERING
   const getMonthlyTotal = (monthYear?: string) => {
     const targetMonth = monthYear || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     
@@ -177,7 +181,21 @@ export const useExpenses = () => {
       .reduce((total, expense) => total + Number(expense.amount), 0);
   };
 
-  // Get recent expenses (last 10)
+  // Get expenses for selected month - NEW FUNCTION FOR PROPER FILTERING
+  const getExpensesForMonth = (monthYear?: string) => {
+    const targetMonth = monthYear || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    
+    return expenses
+      .filter(expense => {
+        const expenseDate = new Date(expense.date);
+        const expenseMonth = expenseDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        return expenseMonth === targetMonth;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 10); // Show last 10 expenses for the month
+  };
+
+  // Get recent expenses (last 10) - KEEP AS FALLBACK
   const getRecentExpenses = () => {
     return expenses.slice(0, 10);
   };
@@ -195,6 +213,7 @@ export const useExpenses = () => {
     deleteExpense: deleteExpenseMutation.mutate,
     isDeletingExpense: deleteExpenseMutation.isPending,
     getMonthlyTotal,
+    getExpensesForMonth,
     getRecentExpenses,
   };
 };

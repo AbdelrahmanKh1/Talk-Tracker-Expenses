@@ -1,8 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check } from 'lucide-react';
+import { useCurrency } from '@/hooks/useCurrency';
+import { toast } from 'sonner';
 
 interface Currency {
   code: string;
@@ -24,16 +26,28 @@ const currencies: Currency[] = [
 
 const Currency = () => {
   const navigate = useNavigate();
-  const [selectedCurrency, setSelectedCurrency] = useState('EGP');
+  const { currency, updateCurrency } = useCurrency();
+  const [selectedCurrency, setSelectedCurrency] = useState(currency.code);
 
-  const handleCurrencySelect = (currency: Currency) => {
+  // Update local state when currency hook changes
+  useEffect(() => {
     setSelectedCurrency(currency.code);
-    // Store selected currency in localStorage
-    localStorage.setItem('selectedCurrency', JSON.stringify(currency));
-    // Navigate back after a short delay
+  }, [currency.code]);
+
+  const handleCurrencySelect = (newCurrency: Currency) => {
+    // Update local selection immediately for UI feedback
+    setSelectedCurrency(newCurrency.code);
+    
+    // Update the currency in the hook and localStorage
+    updateCurrency(newCurrency);
+    
+    // Show success message
+    toast.success(`Currency changed to ${newCurrency.name}`);
+    
+    // Navigate back after a short delay to show the selection
     setTimeout(() => {
       navigate('/dashboard');
-    }, 300);
+    }, 500);
   };
 
   return (
@@ -50,23 +64,31 @@ const Currency = () => {
       </div>
 
       <div className="px-4 py-6">
+        <div className="mb-4">
+          <p className="text-gray-600">Select a different currency for your expenses</p>
+        </div>
+        
         <div className="space-y-2">
-          {currencies.map((currency) => (
+          {currencies.map((curr) => (
             <button
-              key={currency.code}
-              onClick={() => handleCurrencySelect(currency)}
-              className="w-full flex items-center justify-between p-4 bg-white rounded-2xl hover:bg-gray-50 transition-colors"
+              key={curr.code}
+              onClick={() => handleCurrencySelect(curr)}
+              className={`w-full flex items-center justify-between p-4 rounded-2xl transition-colors ${
+                selectedCurrency === curr.code 
+                  ? 'bg-teal-50 border-2 border-teal-200' 
+                  : 'bg-white hover:bg-gray-50 border border-gray-100'
+              }`}
             >
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{currency.flag}</span>
+                <span className="text-2xl">{curr.flag}</span>
                 <div className="text-left">
-                  <div className="font-medium">{currency.name}</div>
-                  <div className="text-sm text-gray-500">{currency.code}</div>
+                  <div className="font-medium">{curr.name}</div>
+                  <div className="text-sm text-gray-500">{curr.code}</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-gray-600">{currency.symbol}</span>
-                {selectedCurrency === currency.code && (
+                <span className="text-gray-600 font-medium">{curr.symbol}</span>
+                {selectedCurrency === curr.code && (
                   <Check className="w-5 h-5 text-teal-500" />
                 )}
               </div>

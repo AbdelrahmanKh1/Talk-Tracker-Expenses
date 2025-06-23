@@ -11,7 +11,7 @@ interface Currency {
 const defaultCurrency: Currency = {
   code: 'EGP',
   name: 'Egyptian Pound',
-  symbol: 'EGP',
+  symbol: 'ج.م',
   flag: '🇪🇬'
 };
 
@@ -23,16 +23,38 @@ export const useCurrency = () => {
     if (stored) {
       try {
         const parsedCurrency = JSON.parse(stored);
-        setCurrency(parsedCurrency);
+        // Validate the stored currency has all required fields
+        if (parsedCurrency.code && parsedCurrency.name && parsedCurrency.symbol && parsedCurrency.flag) {
+          setCurrency(parsedCurrency);
+        } else {
+          // If stored currency is invalid, reset to default
+          localStorage.setItem('selectedCurrency', JSON.stringify(defaultCurrency));
+        }
       } catch (error) {
         console.error('Error parsing stored currency:', error);
+        // Reset to default if parsing fails
+        localStorage.setItem('selectedCurrency', JSON.stringify(defaultCurrency));
       }
     }
   }, []);
 
   const updateCurrency = (newCurrency: Currency) => {
+    // Validate the new currency has all required fields
+    if (!newCurrency.code || !newCurrency.name || !newCurrency.symbol || !newCurrency.flag) {
+      console.error('Invalid currency object:', newCurrency);
+      return;
+    }
+
+    // Update state immediately
     setCurrency(newCurrency);
-    localStorage.setItem('selectedCurrency', JSON.stringify(newCurrency));
+    
+    // Store in localStorage
+    try {
+      localStorage.setItem('selectedCurrency', JSON.stringify(newCurrency));
+      console.log('Currency updated and saved:', newCurrency);
+    } catch (error) {
+      console.error('Error saving currency to localStorage:', error);
+    }
   };
 
   return {
