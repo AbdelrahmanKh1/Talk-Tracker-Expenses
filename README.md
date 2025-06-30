@@ -1,4 +1,4 @@
-# Welcome to your Lovable project
+# Talk Tracker Expense
 
 ## Project info
 
@@ -59,12 +59,13 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+- Supabase (Edge Functions, Auth, Database)
 
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/26eadff0-912f-4e52-b4ca-d0796892dc49) and click on Share -> Publish.
 
-## Can I connect a custom domain to my Lovable project?
+## Can I connect a custom domain to my Talk Tracker Expense project?
 
 Yes, you can!
 

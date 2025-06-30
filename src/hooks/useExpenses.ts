@@ -15,7 +15,7 @@ export interface Expense {
 }
 
 export const useExpenses = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: expenses = [], isLoading, error } = useQuery({
@@ -38,6 +38,38 @@ export const useExpenses = () => {
     enabled: !!user,
   });
 
+  // Helper function to check budget notifications
+  const checkBudgetNotifications = async (selectedMonth?: string) => {
+    if (!session || !user) return;
+    
+    try {
+      const month = selectedMonth ? 
+        `${new Date(selectedMonth + ' 1').getFullYear()}-${String(new Date(selectedMonth + ' 1').getMonth() + 1).padStart(2, '0')}` :
+        `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+      const response = await fetch('/functions/v1/check-budget-notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ user_id: user.id, month }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.notification) {
+          toast(result.notification.body, { 
+            description: result.notification.title,
+            duration: 5000
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking budget notifications:', error);
+    }
+  };
+
   const addExpenseMutation = useMutation({
     mutationFn: async ({ 
       description, 
@@ -54,15 +86,39 @@ export const useExpenses = () => {
     }) => {
       if (!user) throw new Error('User not authenticated');
 
-      // Convert selected month to date if provided
-      let expenseDate = new Date().toISOString().split('T')[0]; // default to today
-      
+      // Calculate the expense date based on selectedMonth
+      let expenseDate: string;
       if (selectedMonth) {
+        // Parse the month-year format (e.g., "Dec 2024")
         const [monthName, year] = selectedMonth.split(' ');
-        const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth();
         const targetYear = parseInt(year);
-        expenseDate = new Date(targetYear, monthIndex, 1).toISOString().split('T')[0];
+        
+        // Create a more reliable date parsing using month names
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthIndex = monthNames.indexOf(monthName);
+        
+        if (monthIndex === -1) {
+          throw new Error(`Invalid month name: ${monthName}`);
+        }
+        
+        const now = new Date();
+        // If selected month and year match current month and year, use today's date
+        if (monthIndex === now.getMonth() && targetYear === now.getFullYear()) {
+          expenseDate = now.toLocaleDateString('en-CA'); // YYYY-MM-DD format, timezone-safe
+        } else {
+          // For past or future months, use the 15th day of the month (middle of month)
+          // This provides a more natural date assignment
+          const monthDate = new Date(targetYear, monthIndex, 15);
+          expenseDate = monthDate.toLocaleDateString('en-CA'); // YYYY-MM-DD format, timezone-safe
+        }
+      } else {
+        // Fallback to today's date if no month is selected
+        expenseDate = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD format, timezone-safe
       }
+
+      // Use the provided created_at date or default to today
+      const createdAtDate = created_at ? new Date(created_at).toISOString() : new Date().toISOString();
 
       const { data, error } = await supabase
         .from('expenses')
@@ -72,7 +128,7 @@ export const useExpenses = () => {
           amount,
           category: category || 'Miscellaneous',
           date: expenseDate,
-          created_at: created_at || new Date().toISOString(),
+          created_at: createdAtDate,
         })
         .select()
         .single();
@@ -80,9 +136,12 @@ export const useExpenses = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast.success('Expense added successfully!');
+      
+      // Check budget notifications after adding expense
+      checkBudgetNotifications(variables.selectedMonth);
     },
     onError: (error) => {
       console.error('Error adding expense:', error);
@@ -100,14 +159,35 @@ export const useExpenses = () => {
     }) => {
       if (!user) throw new Error('User not authenticated');
 
-      // Convert selected month to date if provided
-      let expenseDate = new Date().toISOString().split('T')[0]; // default to today
-      
+      // Calculate the expense date based on selectedMonth
+      let expenseDate: string;
       if (selectedMonth) {
+        // Parse the month-year format (e.g., "Dec 2024")
         const [monthName, year] = selectedMonth.split(' ');
-        const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth();
         const targetYear = parseInt(year);
-        expenseDate = new Date(targetYear, monthIndex, 1).toISOString().split('T')[0];
+        
+        // Create a more reliable date parsing using month names
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthIndex = monthNames.indexOf(monthName);
+        
+        if (monthIndex === -1) {
+          throw new Error(`Invalid month name: ${monthName}`);
+        }
+        
+        const now = new Date();
+        // If selected month and year match current month and year, use today's date
+        if (monthIndex === now.getMonth() && targetYear === now.getFullYear()) {
+          expenseDate = now.toLocaleDateString('en-CA'); // YYYY-MM-DD format, timezone-safe
+        } else {
+          // For past or future months, use the 15th day of the month (middle of month)
+          // This provides a more natural date assignment
+          const monthDate = new Date(targetYear, monthIndex, 15);
+          expenseDate = monthDate.toLocaleDateString('en-CA'); // YYYY-MM-DD format, timezone-safe
+        }
+      } else {
+        // Fallback to today's date if no month is selected
+        expenseDate = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD format, timezone-safe
       }
 
       const expensesToInsert = expenses.map(expense => ({
@@ -126,9 +206,12 @@ export const useExpenses = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast.success(`${data.length} expenses added successfully!`);
+      
+      // Check budget notifications after adding bulk expenses
+      checkBudgetNotifications(variables.selectedMonth);
     },
     onError: (error) => {
       console.error('Error adding bulk expenses:', error);
@@ -142,7 +225,7 @@ export const useExpenses = () => {
       items 
     }: { 
       expenseId: string; 
-      items: { description: string; amount: number; category: string; created_at?: string; date?: string }[] 
+      items: { description: string; amount: number; category: string; date?: string }[] 
     }) => {
       if (!user) throw new Error('User not authenticated');
 
@@ -183,6 +266,9 @@ export const useExpenses = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast.success(`Expense updated with ${data.length} items!`);
+      
+      // Check budget notifications after updating expense
+      checkBudgetNotifications();
     },
     onError: (error) => {
       console.error('Error updating expense:', error);
@@ -206,6 +292,9 @@ export const useExpenses = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast.success('Expense deleted successfully!');
+      
+      // Check budget notifications after deleting expense
+      checkBudgetNotifications();
     },
     onError: (error) => {
       console.error('Error deleting expense:', error);
@@ -219,13 +308,27 @@ export const useExpenses = () => {
     
     // Parse the month-year format (e.g., "Dec 2024")
     const [monthName, year] = monthYear.split(' ');
-    const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth();
     const targetYear = parseInt(year);
+    
+    // Create a more reliable date parsing using month names
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthIndex = monthNames.indexOf(monthName);
+    
+    if (monthIndex === -1) {
+      console.error(`Invalid month name: ${monthName}`);
+      return 0;
+    }
     
     return expenses
       .filter(expense => {
-        const expenseDate = new Date(expense.created_at);
-        return expenseDate.getMonth() === monthIndex && expenseDate.getFullYear() === targetYear;
+        // Use the date field for filtering (this is the month the expense belongs to)
+        const expenseDate = new Date(expense.date);
+        const expenseMonth = expenseDate.getUTCMonth();
+        const expenseYear = expenseDate.getUTCFullYear();
+        
+        // Only show expenses from the exact selected month
+        return expenseMonth === monthIndex && expenseYear === targetYear;
       })
       .reduce((total, expense) => total + Number(expense.amount), 0);
   };
@@ -236,20 +339,123 @@ export const useExpenses = () => {
     
     // Parse the month-year format (e.g., "Dec 2024")
     const [monthName, year] = monthYear.split(' ');
-    const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth();
     const targetYear = parseInt(year);
     
-    return expenses
-      .filter(expense => {
-        const expenseDate = new Date(expense.created_at);
-        return expenseDate.getMonth() === monthIndex && expenseDate.getFullYear() === targetYear;
-      })
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    // Create a more reliable date parsing using month names
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthIndex = monthNames.indexOf(monthName);
+    
+    if (monthIndex === -1) {
+      console.error(`Invalid month name: ${monthName}`);
+      return [];
+    }
+    
+    const filteredExpenses = expenses.filter(expense => {
+      // Use the date field for filtering (this is the month the expense belongs to)
+      const expenseDate = new Date(expense.date);
+      const expenseMonth = expenseDate.getUTCMonth();
+      const expenseYear = expenseDate.getUTCFullYear();
+      
+      // Only show expenses from the exact selected month
+      return expenseMonth === monthIndex && expenseYear === targetYear;
+    });
+    
+    return filteredExpenses.sort((a, b) => {
+      // Sort by date field first, then by created_at
+      const dateA = new Date(a.date || a.created_at);
+      const dateB = new Date(b.date || b.created_at);
+      return dateB.getTime() - dateA.getTime();
+    });
   };
 
   // Get recent expenses (last 10) - KEEP AS FALLBACK
   const getRecentExpenses = () => {
     return expenses.slice(0, 10);
+  };
+
+  // Search expenses by description, category, amount, or date
+  const searchExpenses = (searchTerm: string, monthYear?: string, filters?: {
+    category?: string;
+    minAmount?: number;
+    maxAmount?: number;
+    dateRange?: {
+      start: Date | null;
+      end: Date | null;
+    };
+  }) => {
+    let filteredExpenses = monthYear ? getExpensesForMonth(monthYear) : expenses;
+    
+    // Apply text search
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      
+      filteredExpenses = filteredExpenses.filter(expense => {
+        // Search in description
+        if (expense.description.toLowerCase().includes(term)) return true;
+        
+        // Search in category
+        if (expense.category.toLowerCase().includes(term)) return true;
+        
+        // Search in amount (exact match or partial)
+        if (expense.amount.toString().includes(term)) return true;
+        
+        // Search in date
+        const expenseDate = new Date(expense.date || expense.created_at);
+        const dateString = expenseDate.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }).toLowerCase();
+        if (dateString.includes(term)) return true;
+        
+        // Search in formatted amount (e.g., "1000" matches "1,000")
+        const formattedAmount = expense.amount.toLocaleString();
+        if (formattedAmount.includes(term)) return true;
+        
+        return false;
+      });
+    }
+    
+    // Apply filters
+    if (filters) {
+      // Category filter
+      if (filters.category) {
+        filteredExpenses = filteredExpenses.filter(expense => 
+          expense.category.toLowerCase() === filters.category!.toLowerCase()
+        );
+      }
+      
+      // Amount range filter
+      if (filters.minAmount !== undefined) {
+        filteredExpenses = filteredExpenses.filter(expense => 
+          expense.amount >= filters.minAmount!
+        );
+      }
+      
+      if (filters.maxAmount !== undefined) {
+        filteredExpenses = filteredExpenses.filter(expense => 
+          expense.amount <= filters.maxAmount!
+        );
+      }
+      
+      // Date range filter
+      if (filters.dateRange?.start) {
+        filteredExpenses = filteredExpenses.filter(expense => {
+          const expenseDate = new Date(expense.date || expense.created_at);
+          return expenseDate >= filters.dateRange!.start!;
+        });
+      }
+      
+      if (filters.dateRange?.end) {
+        filteredExpenses = filteredExpenses.filter(expense => {
+          const expenseDate = new Date(expense.date || expense.created_at);
+          return expenseDate <= filters.dateRange!.end!;
+        });
+      }
+    }
+    
+    return filteredExpenses;
   };
 
   return {
@@ -267,5 +473,7 @@ export const useExpenses = () => {
     getMonthlyTotal,
     getExpensesForMonth,
     getRecentExpenses,
+    searchExpenses,
+    invalidateQueries: () => queryClient.invalidateQueries({ queryKey: ['expenses'] }),
   };
 };

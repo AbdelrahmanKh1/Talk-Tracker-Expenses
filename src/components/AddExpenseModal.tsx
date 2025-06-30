@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { X } from 'lucide-react';
+import { X, Utensils, Car, ShoppingBag, HeartPulse, Gamepad2, Receipt, Wallet, Box, Plus, TrendingUp } from 'lucide-react';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -11,6 +12,28 @@ interface AddExpenseModalProps {
   isLoading: boolean;
   selectedMonth?: string;
 }
+
+const CATEGORY_ICONS: Record<string, JSX.Element> = {
+  Food: <Utensils size={24} strokeWidth={2.2} className="text-orange-500" />,
+  Transport: <Car size={24} strokeWidth={2.2} className="text-blue-500" />,
+  Shopping: <ShoppingBag size={24} strokeWidth={2.2} className="text-purple-500" />,
+  Health: <HeartPulse size={24} strokeWidth={2.2} className="text-red-500" />,
+  Entertainment: <Gamepad2 size={24} strokeWidth={2.2} className="text-green-500" />,
+  Bills: <Receipt size={24} strokeWidth={2.2} className="text-yellow-500" />,
+  Income: <Wallet size={24} strokeWidth={2.2} className="text-emerald-500" />,
+  Others: <Box size={24} strokeWidth={2.2} className="text-gray-500" />,
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Food: 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-700 text-orange-700 dark:text-orange-300',
+  Transport: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300',
+  Shopping: 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300',
+  Health: 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-700 dark:text-red-300',
+  Entertainment: 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-300',
+  Bills: 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-700 text-yellow-700 dark:text-yellow-300',
+  Income: 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300',
+  Others: 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300',
+};
 
 const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ 
   isOpen, 
@@ -21,40 +44,29 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
 }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('Miscellaneous');
+  const [category, setCategory] = useState('Others');
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+
+  const { currency } = useCurrency();
 
   const categories = [
     'Food',
     'Transport',
-    'Entertainment',
-    'Health',
     'Shopping',
+    'Health',
+    'Entertainment',
     'Bills',
-    'Education',
-    'Travel',
-    'Miscellaneous'
+    'Income',
+    'Others',
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!description || !amount) return;
 
-    // Generate created_at with selected month (YYYY-MM) and today's day/time
-    let created_at = new Date().toISOString();
-    if (selectedMonth) {
-      // selectedMonth is like "May 2024"
-      const [monthName, year] = selectedMonth.split(' ');
-      const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth(); // JS months are 0-based
-      const month = (monthIndex + 1).toString().padStart(2, '0'); // for string, add 1
-      const today = new Date();
-      let day = today.getDate();
-      // Clamp day to last valid day of selected month
-      const lastDayOfMonth = new Date(Number(year), monthIndex + 1, 0).getDate();
-      if (day > lastDayOfMonth) day = lastDayOfMonth;
-      const dayStr = day.toString().padStart(2, '0');
-      const time = today.toTimeString().split(' ')[0];
-      created_at = `${year}-${month}-${dayStr}T${time}Z`;
-    }
+    // Use today's date for the expense
+    const today = new Date();
+    const created_at = today.toISOString();
 
     onAdd({
       description,
@@ -66,74 +78,160 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
     // Reset form
     setDescription('');
     setAmount('');
-    setCategory('Miscellaneous');
+    setCategory('Others');
     onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-xl font-semibold">Add Expense</h2>
-            {selectedMonth && (
-              <p className="text-sm text-gray-600 mt-1">
-                Adding to {selectedMonth}
-              </p>
-            )}
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-gray-800 rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 w-full max-w-lg shadow-2xl flex flex-col mx-0 sm:mx-0 max-h-[90vh] overflow-y-auto border border-white/20 dark:border-gray-700 animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 duration-300">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center">
+              <Plus className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add Expense</h2>
+              {selectedMonth && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Adding to {selectedMonth}
+                </p>
+              )}
+            </div>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
-            <X className="w-5 h-5" />
+          <button 
+            onClick={onClose} 
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors duration-200"
+          >
+            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="description">Description</Label>
+        <form onSubmit={handleSubmit} className="space-y-6 w-full">
+          {/* Description Field */}
+          <div className="space-y-2">
+            <Label htmlFor="description" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+              Description
+            </Label>
             <Input
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Coffee, Lunch, Uber"
+              placeholder="e.g. Coffee, Lunch, Uber ride"
+              className="h-12 text-base border-gray-200 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500/20 rounded-xl transition-all duration-200 dark:bg-gray-700 dark:text-white"
               required
             />
           </div>
 
-          <div>
-            <Label htmlFor="amount">Amount (EGP)</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              required
-            />
+          {/* Amount Field */}
+          <div className="space-y-2">
+            <Label htmlFor="amount" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+              Amount ({currency.code})
+            </Label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 font-medium">
+                {currency.symbol}
+              </span>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                className="h-12 text-base pl-12 border-gray-200 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500/20 rounded-xl transition-all duration-200 dark:bg-gray-700 dark:text-white"
+                required
+              />
+            </div>
           </div>
 
-          <div>
-            <Label htmlFor="category">Category</Label>
-            <select
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+          {/* Category Selection */}
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+              Category
+            </Label>
+            <button
+              type="button"
+              className="w-full flex items-center gap-4 px-4 py-4 rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-teal-300 dark:hover:border-teal-500 hover:bg-teal-50/50 dark:hover:bg-teal-900/20 transition-all duration-200 text-left group"
+              onClick={() => setIsCategoryModalOpen(true)}
+              aria-label={`Current category: ${category}. Click to change.`}
             >
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+              <div className={`p-2 rounded-lg ${CATEGORY_COLORS[category]}`}>
+                {CATEGORY_ICONS[category] || CATEGORY_ICONS['Others']}
+              </div>
+              <div className="flex-1">
+                <span className="capitalize font-medium text-gray-900 dark:text-white">{category}</span>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Tap to change category</p>
+              </div>
+              <div className="text-gray-400 dark:text-gray-500 group-hover:text-teal-500 transition-colors">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+            </button>
           </div>
 
-          <div className="flex gap-3 mt-6">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+          {/* Category Modal */}
+          {isCategoryModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl max-w-md w-full mx-4 animate-in zoom-in-95 duration-200 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Select Category</h3>
+                  <button
+                    onClick={() => setIsCategoryModalOpen(false)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                  >
+                    <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      aria-label={`Select category: ${cat}`}
+                      onClick={() => { setCategory(cat); setIsCategoryModalOpen(false); }}
+                      className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+                        category === cat 
+                          ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30 scale-105 shadow-lg' 
+                          : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      <div className={`p-2 rounded-lg mb-2 ${CATEGORY_COLORS[cat]}`}>
+                        {CATEGORY_ICONS[cat] || CATEGORY_ICONS['Others']}
+                      </div>
+                      <span className="capitalize text-gray-900 dark:text-white">{cat}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose}
+              className="flex-1 h-12 rounded-xl border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading} className="flex-1 bg-teal-500 hover:bg-teal-600">
-              {isLoading ? 'Adding...' : 'Add Expense'}
+            <Button 
+              type="submit" 
+              disabled={isLoading || !description || !amount}
+              className="flex-1 h-12 rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Adding...
+                </div>
+              ) : (
+                'Add Expense'
+              )}
             </Button>
           </div>
         </form>

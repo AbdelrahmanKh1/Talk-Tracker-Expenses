@@ -1,17 +1,7 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
-  signInWithOAuth: (provider: 'google' | 'apple') => Promise<{ error: any }>;
-}
+import { AuthContextType } from '@/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -48,32 +38,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, name?: string): Promise<{ error: string | null }> => {
     const redirectUrl = `${window.location.origin}/dashboard`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl
       }
     });
-    return { error };
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    // If signup was successful and we have a name, store it in user_settings
+    if (data.user && name) {
+      try {
+        // Use upsert to handle cases where the table might not exist or the record might already exist
+        const { error: settingsError } = await supabase
+          .from('user_settings')
+          .upsert([
+            {
+              user_id: data.user.id,
+              full_name: name,
+              active_currency: 'EGP' // Default currency
+            }
+          ], {
+            onConflict: 'user_id'
+          });
+
+        if (settingsError) {
+          console.error('Error saving user name:', settingsError);
+          // Don't fail the signup if name saving fails
+        }
+      } catch (err) {
+        console.error('Error saving user name:', err);
+        // Don't fail the signup if name saving fails
+      }
+    }
+
+    return { error: null };
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
-    return { error };
+    return { error: error?.message || null };
   };
 
-  const signOut = async () => {
+  const signOut = async (): Promise<void> => {
     await supabase.auth.signOut();
   };
 
-  const signInWithOAuth = async (provider: 'google' | 'apple') => {
+  const signInWithOAuth = async (provider: 'google' | 'apple'): Promise<{ error: string | null }> => {
     const redirectUrl = `${window.location.origin}/dashboard`;
     
     const { error } = await supabase.auth.signInWithOAuth({
@@ -82,10 +103,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         redirectTo: redirectUrl
       }
     });
-    return { error };
+    return { error: error?.message || null };
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     session,
     loading,

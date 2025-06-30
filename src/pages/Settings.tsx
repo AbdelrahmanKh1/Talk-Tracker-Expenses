@@ -1,11 +1,65 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { useTheme } from '@/hooks/useTheme';
+import { useBudget } from '@/hooks/useBudget';
+import { toast } from 'sonner';
+import { 
+  ArrowLeft, 
+  Crown, 
+  Mail, 
+  Settings as SettingsIcon, 
+  Mic, 
+  Shield, 
+  Globe, 
+  HelpCircle, 
+  LogOut, 
+  Trash2, 
+  User,
+  Zap,
+  Star,
+  CheckCircle,
+  ExternalLink,
+  Edit,
+  Save,
+  X,
+  Moon,
+  Sun,
+  Monitor
+} from 'lucide-react';
 
 const Settings = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { settings, updateUserSettings, isUpdating, getUserName } = useUserSettings();
+  const { theme, setTheme } = useTheme();
+  const { budgetStatus, setBudget, isSettingBudget, getCurrentMonth } = useBudget();
+  const [currentBudget, setCurrentBudget] = useState(0);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState('');
+
+  // Update local state when budget status changes
+  useEffect(() => {
+    if (budgetStatus) {
+      setCurrentBudget(budgetStatus.budget);
+    }
+  }, [budgetStatus]);
+
+  // Initialize name value when settings load
+  useEffect(() => {
+    if (settings?.full_name) {
+      setNameValue(settings.full_name);
+    }
+  }, [settings?.full_name]);
+
+  // Save budget
+  const handleSaveBudget = async (newBudget: number) => {
+    const month = getCurrentMonth();
+    setBudget({ month, budgetAmount: newBudget });
+  };
 
   const handleSignOut = async () => {
     if (window.confirm('Are you sure you want to sign out?')) {
@@ -21,180 +75,322 @@ const Settings = () => {
     }
   };
 
+  const handleEditName = () => {
+    setIsEditingName(true);
+    setNameValue(settings?.full_name || '');
+  };
+
+  const handleSaveName = async () => {
+    if (!nameValue.trim() || nameValue.trim().length < 2) {
+      toast.error('Please enter a valid name (minimum 2 characters)');
+      return;
+    }
+
+    await updateUserSettings({ full_name: nameValue.trim() });
+    setIsEditingName(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingName(false);
+    setNameValue(settings?.full_name || '');
+  };
+
+  const getUserInitials = () => {
+    const name = getUserName();
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Header */}
-      <div className="bg-white px-4 py-4 flex items-center gap-3 border-b">
-        <button 
-          onClick={() => navigate('/dashboard')}
-          className="p-2 hover:bg-gray-100 rounded-full"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M19 12H5" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M12 19l-7-7 7-7" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-        <h1 className="text-xl font-semibold">Settings</h1>
+      <div className="bg-white/80 backdrop-blur-md border-b border-gray-100 dark:bg-gray-900/80 dark:border-gray-800 px-4 py-4 sticky top-0 z-40">
+        <div className="max-w-4xl mx-auto flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/dashboard')}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors duration-200"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg flex items-center justify-center">
+              <SettingsIcon className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Manage your account and preferences</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="px-4 py-6 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Pro Upgrade Banner */}
-        <div className="bg-gray-900 rounded-2xl p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold mb-1">Get Unlimited Access</h2>
-              <p className="text-gray-300">to Everything</p>
+        <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-3xl p-6 text-white shadow-xl">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                <Crown className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold mb-1">Upgrade to Pro</h2>
+                <p className="text-purple-100">Unlimited expenses, advanced features & more</p>
+              </div>
             </div>
-            <Button className="bg-white text-black hover:bg-gray-100 rounded-full px-6 py-2 font-medium">
+            <Button className="bg-white text-purple-600 hover:bg-gray-100 rounded-xl px-6 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-200">
+              <Zap className="w-4 h-4 mr-2" />
               Go Pro
             </Button>
           </div>
         </div>
 
+        {/* User Profile Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center">
+              <span className="text-white font-bold text-xl">{getUserInitials()}</span>
+            </div>
+            <div className="flex-1">
+              {isEditingName ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={nameValue}
+                    onChange={(e) => setNameValue(e.target.value)}
+                    placeholder="Enter your name"
+                    className="flex-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    autoFocus
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSaveName}
+                    disabled={isUpdating}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Save className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCancelEdit}
+                    disabled={isUpdating}
+                    className="dark:border-gray-600 dark:text-gray-300"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">{getUserName()}</h3>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleEditName}
+                    className="p-1 h-auto dark:text-gray-400 dark:hover:text-gray-300"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+              <p className="text-gray-500 dark:text-gray-400">{user?.email}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Theme Section */}
+        <div>
+          <h3 className="text-gray-500 dark:text-gray-400 text-sm font-semibold mb-4 uppercase tracking-wide flex items-center gap-2">
+            <Monitor className="w-4 h-4" />
+            Appearance
+          </h3>
+          
+          <div className="bg-white dark:bg-gray-800 rounded-3xl overflow-hidden shadow-lg border border-gray-100 dark:border-gray-700">
+            <div className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
+                    <Monitor className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <span className="font-semibold text-gray-900 dark:text-white">Theme</span>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Choose your preferred theme</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={theme === 'light' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setTheme('light')}
+                    className="dark:border-gray-600 dark:text-gray-300"
+                  >
+                    <Sun className="w-4 h-4 mr-2" />
+                    Light
+                  </Button>
+                  <Button
+                    variant={theme === 'dark' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setTheme('dark')}
+                    className="dark:border-gray-600 dark:text-gray-300"
+                  >
+                    <Moon className="w-4 h-4 mr-2" />
+                    Dark
+                  </Button>
+                  <Button
+                    variant={theme === 'system' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setTheme('system')}
+                    className="dark:border-gray-600 dark:text-gray-300"
+                  >
+                    <Monitor className="w-4 h-4 mr-2" />
+                    System
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Account Section */}
         <div>
-          <h3 className="text-gray-500 text-sm font-medium mb-4 uppercase tracking-wide">Account</h3>
+          <h3 className="text-gray-500 dark:text-gray-400 text-sm font-semibold mb-4 uppercase tracking-wide flex items-center gap-2">
+            <User className="w-4 h-4" />
+            Account
+          </h3>
           
-          <div className="bg-white rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-3 p-4 border-b border-gray-100">
-              <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#666" strokeWidth="2"/>
-                  <polyline points="22,6 12,13 2,6" stroke="#666" strokeWidth="2"/>
-                </svg>
+          <div className="bg-white dark:bg-gray-800 rounded-3xl overflow-hidden shadow-lg border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center gap-4 p-4 border-b border-gray-100 dark:border-gray-700">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="flex-1">
-                <div className="text-sm text-gray-500">Email</div>
-                <div className="font-medium">{user?.email || 'khaledabdelrahman334@gmail.com'}</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Email</div>
+                <div className="font-semibold text-gray-900 dark:text-white">{user?.email || 'khaledabdelrahman334@gmail.com'}</div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="3" stroke="#666" strokeWidth="2"/>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#666" strokeWidth="2"/>
-                  </svg>
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl flex items-center justify-center">
+                  <Crown className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                 </div>
-                <span className="font-medium">Plan</span>
+                <div>
+                  <span className="font-semibold text-gray-900 dark:text-white">Plan</span>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Free Plan</p>
+                </div>
               </div>
-              <span className="text-gray-500">Free</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Current</span>
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              </div>
             </div>
 
             <div className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="#666" strokeWidth="2"/>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M12 19v4" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M8 23h8" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
+                  <Mic className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
-                <span className="font-medium">Voice Records Left</span>
+                <div>
+                  <span className="font-semibold text-gray-900 dark:text-white">Voice Records Left</span>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Monthly allowance</p>
+                </div>
               </div>
-              <span className="text-gray-500">49</span>
+              <div className="text-right">
+                <span className="text-lg font-bold text-green-600 dark:text-green-400">49</span>
+                <p className="text-sm text-gray-500 dark:text-gray-400">/ 50</p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* About App Section */}
         <div>
-          <h3 className="text-gray-500 text-sm font-medium mb-4 uppercase tracking-wide">About App</h3>
+          <h3 className="text-gray-500 dark:text-gray-400 text-sm font-semibold mb-4 uppercase tracking-wide flex items-center gap-2">
+            <Globe className="w-4 h-4" />
+            About App
+          </h3>
           
-          <div className="bg-white rounded-2xl overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl overflow-hidden shadow-lg border border-gray-100 dark:border-gray-700">
             {/* Privacy Policy */}
             <button
-              className="w-full flex items-center justify-between p-4 border-b border-gray-100 hover:bg-gray-50"
+              className="w-full flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
               onClick={() => {
                 window.open('https://www.sayapp.net/privacy', '_blank');
-                console.log('Visited Privacy Policy');
               }}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-lg">
-                  <span role="img" aria-label="Privacy">🛡️</span>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
-                <span className="font-medium">Privacy Policy</span>
+                <span className="font-semibold text-gray-900 dark:text-white">Privacy Policy</span>
               </div>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 18l6-6-6-6" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <ExternalLink className="w-5 h-5 text-gray-400 dark:text-gray-500" />
             </button>
 
             {/* Visit Website */}
             <button
-              className="w-full flex items-center justify-between p-4 border-b border-gray-100 hover:bg-gray-50"
+              className="w-full flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
               onClick={() => {
                 window.open('https://www.sayapp.net', '_blank');
-                console.log('Visited Website');
               }}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-lg">
-                  <span role="img" aria-label="Globe">🌐</span>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
+                  <Globe className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
-                <span className="font-medium">Visit Website</span>
+                <span className="font-semibold text-gray-900 dark:text-white">Visit Website</span>
               </div>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 18l6-6-6-6" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <ExternalLink className="w-5 h-5 text-gray-400 dark:text-gray-500" />
             </button>
 
             {/* FAQs */}
             <button
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
               onClick={() => {
                 window.open('https://www.sayapp.net/#faq', '_blank');
-                console.log('Visited FAQ');
               }}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-lg">
-                  <span role="img" aria-label="Question">❓</span>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
+                  <HelpCircle className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 </div>
-                <span className="font-medium">FAQs</span>
+                <span className="font-semibold text-gray-900 dark:text-white">FAQs</span>
               </div>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 18l6-6-6-6" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <ExternalLink className="w-5 h-5 text-gray-400 dark:text-gray-500" />
             </button>
           </div>
         </div>
 
         {/* Actions Section */}
         <div>
-          <h3 className="text-gray-500 text-sm font-medium mb-4 uppercase tracking-wide">Actions</h3>
+          <h3 className="text-gray-500 dark:text-gray-400 text-sm font-semibold mb-4 uppercase tracking-wide flex items-center gap-2">
+            <SettingsIcon className="w-4 h-4" />
+            Actions
+          </h3>
           
-          <div className="bg-white rounded-2xl overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl overflow-hidden shadow-lg border border-gray-100 dark:border-gray-700">
             <button 
               onClick={handleSignOut}
-              className="w-full flex items-center gap-3 p-4 border-b border-gray-100 hover:bg-gray-50"
+              className="w-full flex items-center gap-4 p-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
             >
-              <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <polyline points="16,17 21,12 16,7" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <line x1="21" y1="12" x2="9" y2="12" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+              <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center">
+                <LogOut className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               </div>
-              <span className="font-medium">Sign Out</span>
+              <span className="font-semibold text-gray-900 dark:text-white">Sign Out</span>
             </button>
 
             <button 
               onClick={handleDeleteAccount}
-              className="w-full flex items-center gap-3 p-4 hover:bg-gray-50"
+              className="w-full flex items-center gap-4 p-4 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
             >
-              <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <polyline points="3,6 5,6 21,6" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
               </div>
-              <span className="font-medium text-red-500">Delete Account</span>
+              <span className="font-semibold text-red-600 dark:text-red-400">Delete Account</span>
             </button>
           </div>
+        </div>
+
+        {/* App Version */}
+        <div className="text-center py-4">
+          <p className="text-sm text-gray-400 dark:text-gray-500">Version 1.0.0</p>
         </div>
       </div>
     </div>

@@ -1,8 +1,8 @@
-
 import React from 'react';
 import AddExpenseModal from './AddExpenseModal';
 import EditExpenseModal from './EditExpenseModal';
 import VoiceRecordingModal from './VoiceRecordingModal';
+import { Expense } from '@/types';
 
 interface DashboardModalsProps {
   isAddModalOpen: boolean;
@@ -13,8 +13,8 @@ interface DashboardModalsProps {
   
   isEditModalOpen: boolean;
   onEditModalClose: () => void;
-  selectedExpense: any;
-  onUpdateExpense: (expenseId: string, items: any[]) => void;
+  selectedExpense: Expense | null;
+  onUpdateExpense: (expenseId: string, items: { description: string; amount: number; category: string; date?: string }[]) => void;
   isUpdatingExpense: boolean;
   
   isVoiceModalOpen: boolean;

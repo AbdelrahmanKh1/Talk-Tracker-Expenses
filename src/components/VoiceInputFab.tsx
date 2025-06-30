@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface VoiceInputFabProps {
@@ -10,7 +9,7 @@ const VoiceInputFab = ({ onVoiceClick }: VoiceInputFabProps) => {
     <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2">
       <button 
         onClick={onVoiceClick}
-        className="w-16 h-16 bg-teal-500 rounded-full shadow-lg flex items-center justify-center hover:bg-teal-600 transition-colors"
+        className="w-16 h-16 bg-gradient-to-br from-teal-500 to-blue-600 rounded-full shadow-lg flex items-center justify-center hover:from-teal-600 hover:to-blue-700 transition-all duration-200 hover:shadow-xl hover:scale-105"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="white"/>

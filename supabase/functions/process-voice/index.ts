@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
@@ -36,13 +35,13 @@ serve(async (req) => {
 
     console.log('Authenticated user:', user.id);
 
-    const { audio } = await req.json();
+    const { audio, selectedMonth } = await req.json();
     
     if (!audio) {
       throw new Error('No audio data provided');
     }
 
-    console.log('Processing voice input for user:', user.id);
+    console.log('Processing voice input for user:', user.id, 'for month:', selectedMonth);
 
     // Check if AssemblyAI API key is available
     const assemblyAIKey = Deno.env.get('ASSEMBLYAI_API_KEY');
@@ -219,10 +218,144 @@ serve(async (req) => {
 
     console.log('Parsed expenses:', uniqueExpenses);
 
+    // --- Voice Command Quota Enforcement ---
+    // 1. Determine current month
+    const now = new Date();
+    const monthId = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    // 2. Get user plan (from user_metadata or user_settings)
+    let plan = user.user_metadata?.plan;
+    if (!plan) {
+      // fallback: try user_settings
+      const { data: settings } = await supabase
+        .from('user_settings')
+        .select('plan')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      plan = settings?.plan || 'free';
+    }
+
+    // 3. Get voice usage for this month
+    let { data: usageRow } = await supabase
+      .from('voice_usage')
+      .select('voice_count, limit')
+      .eq('user_id', user.id)
+      .eq('month_id', monthId)
+      .maybeSingle();
+    if (!usageRow) {
+      // Insert initial row if not exists
+      const limit = plan === 'pro' ? 999999 : 50;
+      const { data: newRow } = await supabase
+        .from('voice_usage')
+        .insert({ user_id: user.id, month_id: monthId, voice_count: 0, limit })
+        .select()
+        .maybeSingle();
+      usageRow = newRow;
+    }
+    // 4. Enforce quota for free users
+    if (plan === 'free' && usageRow.voice_count >= 50) {
+      return new Response(
+        JSON.stringify({ error: 'Voice quota reached – upgrade to Pro' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    // --- End Voice Command Quota Enforcement ---
+
+    // Insert expenses into the database
+    const insertedExpenses = [];
+    
+    // Use today's date for expenses
+    const expenseDate = new Date().toISOString().split('T')[0];
+    
+    for (const expense of uniqueExpenses) {
+      const { data, error } = await supabase.from('expenses').insert([
+        {
+          user_id: user.id,
+          amount: expense.amount,
+          description: expense.description,
+          category: expense.category,
+          date: expenseDate,
+          created_at: new Date().toISOString(),
+          // Optionally: currency_code: activeCurrency (if available)
+        }
+      ]).select();
+      if (error) {
+        console.error('Error inserting expense:', error);
+        continue;
+      }
+      if (data && data.length > 0) {
+        insertedExpenses.push(data[0]);
+      }
+    }
+    // --- Increment voice usage after successful processing ---
+    await supabase
+      .from('voice_usage')
+      .update({ voice_count: (usageRow.voice_count || 0) + 1 })
+      .eq('user_id', user.id)
+      .eq('month_id', monthId);
+
+    // --- Budget Notification Logic ---
+    let notification = null;
+    if (insertedExpenses.length > 0) {
+      const now = new Date();
+      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const { data: budgetRow } = await supabase
+        .from('user_budgets')
+        .select('budget_amount')
+        .eq('user_id', user.id)
+        .eq('month', month)
+        .maybeSingle();
+      if (budgetRow && budgetRow.budget_amount) {
+        const { data: sumResult } = await supabase
+          .from('expenses')
+          .select('amount')
+          .eq('user_id', user.id)
+          .gte('created_at', `${month}-01`)
+          .lte('created_at', `${month}-31`);
+        const spent = sumResult ? sumResult.reduce((acc, e) => acc + (e.amount || 0), 0) : 0;
+        const budget = budgetRow.budget_amount;
+        const percent = Math.round((spent / budget) * 100);
+        const remaining = Math.max(0, budget - spent);
+        const thresholds = [50, 75, 100];
+        let crossed = null;
+        for (const t of thresholds) {
+          if (percent >= t) crossed = t;
+        }
+        if (crossed) {
+          const { data: notifExists } = await supabase
+            .from('user_notifications')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('type', 'budget')
+            .gte('created_at', `${month}-01`)
+            .like('title', `%${crossed}%`);
+          if (!notifExists || notifExists.length === 0) {
+            let title = '', body = '';
+            if (crossed === 50) {
+              title = 'Budget Update 📊';
+              body = `You've spent 50% of your ${now.toLocaleString('default', { month: 'long' })} budget. EGP${remaining} remaining.`;
+            } else if (crossed === 75) {
+              title = 'Budget Warning ⚠️';
+              body = `You've used 75% of your ${now.toLocaleString('default', { month: 'long' })} budget. Be cautious!`;
+            } else if (crossed === 100) {
+              title = 'Budget Exceeded 🚨';
+              body = `You've exceeded your ${now.toLocaleString('default', { month: 'long' })} budget!`;
+            }
+            await supabase.from('user_notifications').insert([
+              { user_id: user.id, title, body, type: 'budget' }
+            ]);
+            notification = { title, body };
+          }
+        }
+      }
+    }
+    // --- End Budget Notification Logic ---
+
     return new Response(
       JSON.stringify({ 
         transcription: transcript.text,
-        expenses: uniqueExpenses 
+        expenses: insertedExpenses,
+        notification // may be null
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

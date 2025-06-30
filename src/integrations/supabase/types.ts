@@ -19,6 +19,7 @@ export type Database = {
           id: string
           updated_at: string
           user_id: string
+          currency_code: string | null
         }
         Insert: {
           amount: number
@@ -29,6 +30,7 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id: string
+          currency_code?: string | null
         }
         Update: {
           amount?: number
@@ -39,8 +41,190 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+          currency_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_budgets: {
+        Row: {
+          id: string
+          user_id: string
+          month: string
+          budget_amount: number
+          budget_currency: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          month: string
+          budget_amount: number
+          budget_currency?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          month?: string
+          budget_amount?: number
+          budget_currency?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_budgets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_settings: {
+        Row: {
+          id: string
+          user_id: string
+          full_name: string | null
+          active_currency: string
+          theme: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          full_name?: string | null
+          active_currency?: string
+          theme?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          full_name?: string | null
+          active_currency?: string
+          theme?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_notifications: {
+        Row: {
+          id: string
+          user_id: string
+          title: string | null
+          body: string | null
+          type: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title?: string | null
+          body?: string | null
+          type?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string | null
+          body?: string | null
+          type?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      fx_rates: {
+        Row: {
+          id: string
+          base_code: string
+          quote_code: string
+          rate: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          base_code: string
+          quote_code: string
+          rate: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          base_code?: string
+          quote_code?: string
+          rate?: number
+          updated_at?: string
         }
         Relationships: []
+      }
+      voice_usage: {
+        Row: {
+          id: string
+          user_id: string
+          month_id: string
+          voice_count: number
+          limit: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          month_id: string
+          voice_count?: number
+          limit?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          month_id?: string
+          voice_count?: number
+          limit?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
