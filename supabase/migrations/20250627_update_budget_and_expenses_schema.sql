@@ -1,0 +1,3 @@
+-- Update budget and expenses schema for new frontend features
+-- The AT command has been deprecated. Please use schtasks.exe instead.
+-- (No SQL statements in this migration. If you need to add schema changes, do so below.)
