@@ -1,5 +1,9 @@
 # Talk Tracker Expense
 
+Track your expenses easily with voice input and AI-powered insights.
+
+<!-- Last updated: 2024-12-19 -->
+
 ## Project info
 
 **URL**: https://lovable.dev/projects/26eadff0-912f-4e52-b4ca-d0796892dc49
