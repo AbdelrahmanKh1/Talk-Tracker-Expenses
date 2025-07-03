@@ -9,6 +9,210 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      ai_category_learning: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          description_pattern: string
+          id: string
+          last_used: string | null
+          suggested_category: string
+          usage_count: number | null
+          user_id: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          description_pattern: string
+          id?: string
+          last_used?: string | null
+          suggested_category: string
+          usage_count?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          description_pattern?: string
+          id?: string
+          last_used?: string | null
+          suggested_category?: string
+          usage_count?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      ai_conversations: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          message_type: string
+          metadata: Json | null
+          session_id: string
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          message_type: string
+          metadata?: Json | null
+          session_id: string
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          message_type?: string
+          metadata?: Json | null
+          session_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      ai_processing_sessions: {
+        Row: {
+          confidence_scores: Json | null
+          created_at: string | null
+          id: string
+          original_transcription: string
+          processed_expenses: Json
+          processing_metadata: Json | null
+          session_id: string
+          user_id: string | null
+        }
+        Insert: {
+          confidence_scores?: Json | null
+          created_at?: string | null
+          id?: string
+          original_transcription: string
+          processed_expenses: Json
+          processing_metadata?: Json | null
+          session_id: string
+          user_id?: string | null
+        }
+        Update: {
+          confidence_scores?: Json | null
+          created_at?: string | null
+          id?: string
+          original_transcription?: string
+          processed_expenses?: Json
+          processing_metadata?: Json | null
+          session_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      ai_user_preferences: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          last_used: string | null
+          preference_key: string
+          preference_type: string
+          preference_value: Json
+          usage_count: number | null
+          user_id: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          last_used?: string | null
+          preference_key: string
+          preference_type: string
+          preference_value: Json
+          usage_count?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          last_used?: string | null
+          preference_key?: string
+          preference_type?: string
+          preference_value?: Json
+          usage_count?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      ai_voice_analytics: {
+        Row: {
+          category_prediction_accuracy: number | null
+          created_at: string | null
+          expense_extraction_confidence: number | null
+          id: string
+          processing_time_ms: number | null
+          session_id: string
+          transcription_confidence: number | null
+          user_feedback: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          category_prediction_accuracy?: number | null
+          created_at?: string | null
+          expense_extraction_confidence?: number | null
+          id?: string
+          processing_time_ms?: number | null
+          session_id: string
+          transcription_confidence?: number | null
+          user_feedback?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          category_prediction_accuracy?: number | null
+          created_at?: string | null
+          expense_extraction_confidence?: number | null
+          id?: string
+          processing_time_ms?: number | null
+          session_id?: string
+          transcription_confidence?: number | null
+          user_feedback?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      debts: {
+        Row: {
+          amount: number
+          currency: string
+          date_created: string | null
+          id: string
+          is_settled: boolean | null
+          name: string
+          note: string | null
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          currency: string
+          date_created?: string | null
+          id?: string
+          is_settled?: boolean | null
+          name: string
+          note?: string | null
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          currency?: string
+          date_created?: string | null
+          id?: string
+          is_settled?: boolean | null
+          name?: string
+          note?: string | null
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number
@@ -19,7 +223,6 @@ export type Database = {
           id: string
           updated_at: string
           user_id: string
-          currency_code: string | null
         }
         Insert: {
           amount: number
@@ -30,7 +233,6 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id: string
-          currency_code?: string | null
         }
         Update: {
           amount?: number
@@ -41,197 +243,178 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
-          currency_code?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "expenses_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      user_budgets: {
-        Row: {
-          id: string
-          user_id: string
-          month: string
-          budget_amount: number
-          budget_currency: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          month: string
-          budget_amount: number
-          budget_currency?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          month?: string
-          budget_amount?: number
-          budget_currency?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_budgets_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      user_settings: {
-        Row: {
-          id: string
-          user_id: string
-          full_name: string | null
-          active_currency: string
-          theme: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          full_name?: string | null
-          active_currency?: string
-          theme?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          full_name?: string | null
-          active_currency?: string
-          theme?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_settings_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      user_notifications: {
-        Row: {
-          id: string
-          user_id: string
-          title: string | null
-          body: string | null
-          type: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          title?: string | null
-          body?: string | null
-          type?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          title?: string | null
-          body?: string | null
-          type?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_notifications_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       fx_rates: {
         Row: {
-          id: string
           base_code: string
+          id: string
+          last_updated: string
           quote_code: string
           rate: number
-          updated_at: string
         }
         Insert: {
-          id?: string
           base_code: string
+          id?: string
+          last_updated?: string
           quote_code: string
           rate: number
-          updated_at?: string
         }
         Update: {
-          id?: string
           base_code?: string
+          id?: string
+          last_updated?: string
           quote_code?: string
           rate?: number
-          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_budgets: {
+        Row: {
+          budget_amount: number
+          budget_currency: string | null
+          created_at: string | null
+          id: string
+          month: string
+          user_id: string | null
+        }
+        Insert: {
+          budget_amount: number
+          budget_currency?: string | null
+          created_at?: string | null
+          id?: string
+          month: string
+          user_id?: string | null
+        }
+        Update: {
+          budget_amount?: number
+          budget_currency?: string | null
+          created_at?: string | null
+          id?: string
+          month?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_notifications: {
+        Row: {
+          body: string | null
+          created_at: string | null
+          id: string
+          title: string | null
+          type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string | null
+          id?: string
+          title?: string | null
+          type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          body?: string | null
+          created_at?: string | null
+          id?: string
+          title?: string | null
+          type?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          active_currency: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          theme: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          active_currency?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          theme?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          active_currency?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          theme?: string | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
       voice_usage: {
         Row: {
+          created_at: string | null
           id: string
-          user_id: string
-          month_id: string
-          voice_count: number
           limit: number
-          created_at: string
-          updated_at: string
+          month_id: string
+          user_id: string | null
+          voice_count: number
         }
         Insert: {
+          created_at?: string | null
           id?: string
-          user_id: string
-          month_id: string
-          voice_count?: number
           limit?: number
-          created_at?: string
-          updated_at?: string
+          month_id: string
+          user_id?: string | null
+          voice_count?: number
         }
         Update: {
+          created_at?: string | null
           id?: string
-          user_id?: string
-          month_id?: string
-          voice_count?: number
           limit?: number
-          created_at?: string
-          updated_at?: string
+          month_id?: string
+          user_id?: string | null
+          voice_count?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "voice_usage_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_ai_preferences: {
+        Args: { p_user_id: string; p_preference_type?: string }
+        Returns: {
+          preference_type: string
+          preference_key: string
+          preference_value: Json
+          confidence_score: number
+          usage_count: number
+        }[]
+      }
+      learn_category_pattern: {
+        Args: {
+          p_user_id: string
+          p_description_pattern: string
+          p_suggested_category: string
+          p_confidence_score?: number
+        }
+        Returns: undefined
+      }
+      update_ai_preference: {
+        Args: {
+          p_user_id: string
+          p_preference_type: string
+          p_preference_key: string
+          p_preference_value: Json
+          p_confidence_score?: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

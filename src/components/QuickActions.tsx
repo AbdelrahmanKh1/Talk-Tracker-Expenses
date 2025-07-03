@@ -27,6 +27,7 @@ interface QuickActionsProps {
   onVoiceInput: () => void;
   onSetBudget: () => void;
   onViewAnalytics: () => void;
+  onConnectWallet: () => void;
   onOpenSettings: () => void;
   onExportData: () => void;
   onShareReport: () => void;
@@ -37,6 +38,7 @@ export const QuickActions = ({
   onVoiceInput,
   onSetBudget,
   onViewAnalytics,
+  onConnectWallet,
   onOpenSettings,
   onExportData,
   onShareReport
@@ -50,6 +52,15 @@ export const QuickActions = ({
       color: 'text-blue-600 dark:text-blue-400',
       bgColor: 'bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50',
       onClick: onAddExpense
+    },
+    {
+      id: 'connect-wallet',
+      title: 'Connect Wallet',
+      description: 'Link your bank account',
+      icon: <Wallet className="w-5 h-5" />,
+      color: 'text-cyan-600 dark:text-cyan-400',
+      bgColor: 'bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-900/30 dark:hover:bg-cyan-900/50',
+      onClick: onConnectWallet
     },
     {
       id: 'voice-input',

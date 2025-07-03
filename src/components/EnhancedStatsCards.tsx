@@ -1,16 +1,8 @@
 import React from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Calendar, 
-  Target, 
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  BarChart3
-} from 'lucide-react';
-import { useCurrency } from '@/hooks/useCurrency';
+import { useExpenses } from '@/hooks/useExpenses';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { TrendingUp, TrendingDown, DollarSign, ShoppingBag, Calendar, Target, AlertTriangle, CheckCircle, Clock, BarChart3 } from 'lucide-react';
+import { formatCompactNumber } from '@/lib/utils';
 
 interface Expense {
   id: string;
@@ -33,7 +25,8 @@ export const EnhancedStatsCards = ({
   spent, 
   selectedMonth 
 }: EnhancedStatsCardsProps) => {
-  const { currency } = useCurrency();
+  const { settings } = useUserSettings();
+  const { getMonthlyTotal, getExpensesForMonth } = useExpenses();
 
   const stats = React.useMemo(() => {
     const totalExpenses = expenses.length;
@@ -83,20 +76,20 @@ export const EnhancedStatsCards = ({
   const cards = [
     {
       title: 'Total Spent',
-      value: `${currency.symbol} ${stats.totalSpent.toLocaleString()}`,
+      value: `${settings?.base_currency || 'USD'} ${formatCompactNumber(stats.totalSpent)}`,
       subtitle: `${stats.monthExpenses} expenses this month`,
       icon: <DollarSign className="w-6 h-6" />,
       color: 'blue',
       gradient: 'from-blue-500 to-blue-600',
       bgGradient: 'from-blue-50 to-blue-100',
-      trend: stats.averagePerDay > 0 ? `${currency.symbol} ${stats.averagePerDay.toFixed(0)}/day` : 'No spending yet'
+      trend: stats.averagePerDay > 0 ? `${settings?.base_currency || 'USD'} ${stats.averagePerDay.toFixed(0)}/day` : 'No spending yet'
     },
     {
       title: 'Budget Status',
       value: `${stats.budgetPercentage.toFixed(1)}%`,
       subtitle: stats.isOverBudget 
-        ? `Over by ${currency.symbol} ${(spent - budget).toLocaleString()}`
-        : `${currency.symbol} ${stats.remainingBudget.toLocaleString()} remaining`,
+        ? `Over by ${settings?.base_currency || 'USD'} ${(spent - budget).toLocaleString()}`
+        : `${settings?.base_currency || 'USD'} ${stats.remainingBudget.toLocaleString()} remaining`,
       icon: stats.isOverBudget ? <AlertTriangle className="w-6 h-6" /> : 
             stats.isNearBudget ? <AlertTriangle className="w-6 h-6" /> : 
             <CheckCircle className="w-6 h-6" />,
@@ -113,21 +106,21 @@ export const EnhancedStatsCards = ({
     },
     {
       title: 'Projected Total',
-      value: `${currency.symbol} ${stats.projectedTotal.toLocaleString()}`,
+      value: `${settings?.base_currency || 'USD'} ${formatCompactNumber(stats.projectedTotal)}`,
       subtitle: `Based on current pace`,
       icon: <TrendingUp className="w-6 h-6" />,
       color: stats.projectedTotal > budget ? 'red' : 'green',
       gradient: stats.projectedTotal > budget ? 'from-red-500 to-red-600' : 'from-green-500 to-green-600',
       bgGradient: stats.projectedTotal > budget ? 'from-red-50 to-red-100' : 'from-green-50 to-green-100',
       trend: stats.projectedTotal > budget ? 
-        `Will exceed by ${currency.symbol} ${(stats.projectedTotal - budget).toLocaleString()}` : 
-        `Will save ${currency.symbol} ${(budget - stats.projectedTotal).toLocaleString()}`
+        `Will exceed by ${settings?.base_currency || 'USD'} ${(stats.projectedTotal - budget).toLocaleString()}` : 
+        `Will save ${settings?.base_currency || 'USD'} ${(budget - stats.projectedTotal).toLocaleString()}`
     },
     {
       title: 'Top Category',
       value: stats.topCategory ? stats.topCategory.name : 'None',
       subtitle: stats.topCategory ? 
-        `${currency.symbol} ${stats.topCategory.amount.toLocaleString()}` : 
+        `${settings?.base_currency || 'USD'} ${formatCompactNumber(stats.topCategory.amount)}` : 
         'No expenses yet',
       icon: <BarChart3 className="w-6 h-6" />,
       color: 'purple',

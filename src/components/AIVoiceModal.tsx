@@ -244,7 +244,8 @@ export const AIVoiceModal: React.FC<AIVoiceModalProps> = ({
             body: JSON.stringify({
               expenses: expensesData,
               selectedMonth,
-              sessionId: result.session_id
+              sessionId: result.session_id,
+              source: 'voice'
             }),
           });
 

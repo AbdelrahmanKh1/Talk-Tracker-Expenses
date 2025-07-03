@@ -1,8 +1,9 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useExpenses } from '@/hooks/useExpenses';
-import { useCurrency } from '@/hooks/useCurrency';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatCompactNumber } from '@/lib/utils';
 
 interface MonthSelectorProps {
   selectedMonth: string;
@@ -11,7 +12,7 @@ interface MonthSelectorProps {
 
 const MonthSelector = ({ selectedMonth, onMonthSelect }: MonthSelectorProps) => {
   const { getMonthlyTotal } = useExpenses();
-  const { currency } = useCurrency();
+  const { settings } = useUserSettings();
 
   // Generate last 12 months dynamically
   const generateMonths = () => {
@@ -122,7 +123,7 @@ const MonthSelector = ({ selectedMonth, onMonthSelect }: MonthSelectorProps) => 
                 {month.year}
               </div>
               <div className={`font-bold text-xs ${month.active ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                {currency.symbol} {month.total.toLocaleString()}
+                {settings?.base_currency || 'USD'} {formatCompactNumber(month.total)}
               </div>
             </div>
             
@@ -144,7 +145,7 @@ const MonthSelector = ({ selectedMonth, onMonthSelect }: MonthSelectorProps) => 
           <div className="text-right">
             <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total</p>
             <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
-              {currency.symbol} {getMonthlyTotal(selectedMonth).toLocaleString()}
+              {settings?.base_currency || 'USD'} {formatCompactNumber(getMonthlyTotal(selectedMonth))}
             </p>
           </div>
         </div>

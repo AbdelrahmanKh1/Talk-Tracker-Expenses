@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, name?: string): Promise<{ error: string | null }> => {
+  const signUp = async (email: string, password: string, name?: string, baseCurrency?: string): Promise<{ error: string | null }> => {
     const redirectUrl = `${window.location.origin}/dashboard`;
     
     const { data, error } = await supabase.auth.signUp({
@@ -53,29 +53,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: error.message };
     }
 
-    // If signup was successful and we have a name, store it in user_settings
-    if (data.user && name) {
+    // If signup was successful and we have a name or baseCurrency, store them in user_settings
+    if (data.user && (name || baseCurrency)) {
       try {
-        // Use upsert to handle cases where the table might not exist or the record might already exist
         const { error: settingsError } = await supabase
           .from('user_settings')
           .upsert([
             {
               user_id: data.user.id,
               full_name: name,
-              active_currency: 'EGP' // Default currency
+              base_currency: baseCurrency || 'USD',
+              active_currency: baseCurrency || 'USD'
             }
           ], {
             onConflict: 'user_id'
           });
 
         if (settingsError) {
-          console.error('Error saving user name:', settingsError);
-          // Don't fail the signup if name saving fails
+          console.error('Error saving user settings:', settingsError);
         }
       } catch (err) {
-        console.error('Error saving user name:', err);
-        // Don't fail the signup if name saving fails
+        console.error('Error saving user settings:', err);
       }
     }
 

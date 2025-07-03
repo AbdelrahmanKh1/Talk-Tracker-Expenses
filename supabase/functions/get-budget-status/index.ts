@@ -6,37 +6,64 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Helper to convert an amount from one currency to another using fx_rates
-async function convertCurrency(supabase, amount, from, to) {
-  if (from === to) return amount;
-  
+// Helper to fetch and cache live FX rate from exchangenerate.host
+async function fetchAndCacheRate(supabase, from, to) {
+  if (from === to) return 1;
+  const API_KEY = '6701dd6425629aff301ad15009566294'; // exchangenerate.host key
+  const url = `https://api.exchangenerate.host/latest?base=${from}&symbols=${to}`;
   try {
-  // Try direct rate
-  let { data: rateRow } = await supabase
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${API_KEY}` }
+    });
+    if (!res.ok) throw new Error('Failed to fetch live FX rate');
+    const data = await res.json();
+    const rate = data.rates?.[to];
+    if (!rate) throw new Error('No rate in response');
+    // Upsert into fx_rates
+    const now = new Date().toISOString();
+    await supabase.from('fx_rates').upsert({
+      base_code: from,
+      quote_code: to,
+      rate,
+      last_updated: now
+    }, { onConflict: ['base_code', 'quote_code'] });
+    return rate;
+  } catch (error) {
+    console.warn(`Live FX fetch failed for ${from}->${to}:`, error);
+    return null;
+  }
+}
+
+// Helper to get a valid FX rate (cached or live)
+async function getFxRate(supabase, from, to) {
+  if (from === to) return 1;
+  // Try cached first (within 24h)
+  const { data: rateRow } = await supabase
     .from('fx_rates')
-    .select('rate')
+    .select('rate, last_updated')
     .eq('base_code', from)
     .eq('quote_code', to)
     .maybeSingle();
-    
-  if (rateRow && rateRow.rate) return amount * rateRow.rate;
-    
+  if (rateRow && rateRow.rate && rateRow.last_updated) {
+    const updated = new Date(rateRow.last_updated);
+    const now = new Date();
+    const hours = (now - updated) / 36e5;
+    if (hours < 24) return rateRow.rate;
+  }
+  // Try live fetch
+  const liveRate = await fetchAndCacheRate(supabase, from, to);
+  if (liveRate) return liveRate;
+  // Fallback to cached even if outdated
+  if (rateRow && rateRow.rate) return rateRow.rate;
   // Try inverse
-  ({ data: rateRow } = await supabase
+  const { data: invRow } = await supabase
     .from('fx_rates')
-    .select('rate')
+    .select('rate, last_updated')
     .eq('base_code', to)
     .eq('quote_code', from)
-    .maybeSingle());
-    
-  if (rateRow && rateRow.rate) return amount / rateRow.rate;
-    
-  // Fallback: no conversion
-  return amount;
-  } catch (error) {
-    console.warn(`Currency conversion failed for ${from} to ${to}:`, error);
-    return amount;
-  }
+    .maybeSingle();
+  if (invRow && invRow.rate) return 1 / invRow.rate;
+  return null;
 }
 
 serve(async (req) => {
@@ -86,14 +113,14 @@ serve(async (req) => {
       .select('active_currency')
       .eq('user_id', user.id)
       .maybeSingle();
-    const activeCurrency = settings?.active_currency || 'EGP';
+    const preferredCurrency = settings?.active_currency || 'EGP';
 
     // Get budget for the month
     const { data: budgetRow, error: budgetError } = await supabase
       .from('user_budgets')
-      .select('budget_amount, budget_currency')
+      .select('amount, budget_currency')
       .eq('user_id', user.id)
-      .eq('month', month)
+      .eq('month_id', month)
       .maybeSingle();
 
     if (budgetError) {
@@ -101,14 +128,21 @@ serve(async (req) => {
       throw new Error('Failed to fetch budget');
     }
 
-    if (!budgetRow || !budgetRow.budget_amount) {
+    if (!budgetRow || !budgetRow.amount) {
       return new Response(
         JSON.stringify({ 
           budget: 0,
           spent: 0,
           remaining: 0,
           percent: 0,
-          currency: activeCurrency
+          currency: preferredCurrency,
+          original: {
+            budget: 0,
+            spent: 0,
+            remaining: 0,
+            percent: 0,
+            currency: budgetRow?.budget_currency || preferredCurrency
+          }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -122,7 +156,7 @@ serve(async (req) => {
     
     const { data: expenses, error: expensesError } = await supabase
       .from('expenses')
-      .select('amount')
+      .select('amount, currency_code')
       .eq('user_id', user.id)
       .gte('date', startDate)
       .lte('date', endDate);
@@ -132,23 +166,52 @@ serve(async (req) => {
       throw new Error('Failed to fetch expenses');
     }
 
-    // Calculate total spent
+    // Calculate total spent in budget currency
     let spent = 0;
-    if (expenses && expenses.length > 0) {
-      spent = expenses.reduce((total, exp) => total + exp.amount, 0);
+    for (const exp of expenses || []) {
+      const from = exp.currency_code || budgetRow.budget_currency || preferredCurrency;
+      if (from === budgetRow.budget_currency) {
+        spent += exp.amount;
+      } else {
+        // Convert to budget currency for original calculation
+        const rate = await getFxRate(supabase, from, budgetRow.budget_currency);
+        spent += rate ? exp.amount * rate : exp.amount;
+      }
     }
-
-    const budget = budgetRow.budget_amount;
+    const budget = budgetRow.amount;
     const percent = Math.round((spent / budget) * 100);
     const remaining = Math.max(0, budget - spent);
 
+    // Now, convert all values to preferred currency if needed
+    let converted = { budget, spent, remaining, percent, currency: budgetRow.budget_currency };
+    if (preferredCurrency !== budgetRow.budget_currency) {
+      const fx = await getFxRate(supabase, budgetRow.budget_currency, preferredCurrency);
+      if (!fx) {
+        // Fallback: return original, but add error
+        return new Response(
+          JSON.stringify({
+            ...converted,
+            currency: preferredCurrency,
+            error: `Could not fetch FX rate for ${budgetRow.budget_currency}->${preferredCurrency}`,
+            original: { budget, spent, remaining, percent, currency: budgetRow.budget_currency }
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      converted = {
+        budget: Math.round(budget * fx * 100) / 100,
+        spent: Math.round(spent * fx * 100) / 100,
+        remaining: Math.round(remaining * fx * 100) / 100,
+        percent,
+        currency: preferredCurrency
+      };
+    }
+
+    // Return both converted and original for tooltips
     return new Response(
       JSON.stringify({
-        budget,
-        spent,
-        remaining,
-        percent,
-        currency: budgetRow.budget_currency || activeCurrency
+        ...converted,
+        original: { budget, spent, remaining, percent, currency: budgetRow.budget_currency }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

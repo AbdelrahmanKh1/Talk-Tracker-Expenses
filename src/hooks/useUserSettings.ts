@@ -8,6 +8,8 @@ export interface UserSettings {
   user_id: string;
   full_name: string | null;
   active_currency: string;
+  base_currency: string | null;
+  preferred_currency: string | null;
   theme: string | null;
   created_at: string;
   updated_at: string;

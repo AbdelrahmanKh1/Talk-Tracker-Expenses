@@ -37,7 +37,7 @@ serve(async (req) => {
       throw new Error('Invalid or expired token');
     }
 
-    const { expenses, selectedMonth, sessionId } = await req.json();
+    const { expenses, selectedMonth, sessionId, source = 'manual' } = await req.json();
     
     if (!expenses || !Array.isArray(expenses) || expenses.length === 0) {
       throw new Error('No expenses provided');
@@ -79,6 +79,7 @@ serve(async (req) => {
           category: expense.category,
           date: expenseDate,
           created_at: new Date().toISOString(),
+          source: source,
         }]).select();
 
         if (error) {

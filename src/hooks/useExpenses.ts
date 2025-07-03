@@ -12,6 +12,7 @@ export interface Expense {
   date: string;
   created_at: string;
   updated_at: string;
+  source: 'manual' | 'voice' | 'wallet';
 }
 
 export const useExpenses = () => {
@@ -334,43 +335,30 @@ export const useExpenses = () => {
   };
 
   // Get expenses for selected month with proper date filtering
-  const getExpensesForMonth = (monthYear?: string) => {
-    if (!monthYear) return [];
-    
-    // Parse the month-year format (e.g., "Dec 2024")
-    const [monthName, year] = monthYear.split(' ');
-    const targetYear = parseInt(year);
-    
-    // Create a more reliable date parsing using month names
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthIndex = monthNames.indexOf(monthName);
-    
-    if (monthIndex === -1) {
-      console.error(`Invalid month name: ${monthName}`);
-      return [];
+  const getExpensesForMonth = (monthYear?: string, sourceFilter?: 'wallet' | 'manual' | 'voice') => {
+    if (!expenses) return [];
+
+    let filtered = expenses;
+
+    if (monthYear) {
+      filtered = filtered.filter(expense => {
+        const expenseDate = new Date(expense.date);
+        const expenseMonth = expenseDate.toLocaleString('en-US', { month: 'short' });
+        const expenseYear = expenseDate.getFullYear();
+        return `${expenseMonth} ${expenseYear}` === monthYear;
+      });
+    }
+
+    if (sourceFilter) {
+      filtered = filtered.filter(expense => expense.source === sourceFilter);
     }
     
-    const filteredExpenses = expenses.filter(expense => {
-      // Use the date field for filtering (this is the month the expense belongs to)
-      const expenseDate = new Date(expense.date);
-      const expenseMonth = expenseDate.getUTCMonth();
-      const expenseYear = expenseDate.getUTCFullYear();
-      
-      // Only show expenses from the exact selected month
-      return expenseMonth === monthIndex && expenseYear === targetYear;
-    });
-    
-    return filteredExpenses.sort((a, b) => {
-      // Sort by date field first, then by created_at
-      const dateA = new Date(a.date || a.created_at);
-      const dateB = new Date(b.date || b.created_at);
-      return dateB.getTime() - dateA.getTime();
-    });
+    return filtered;
   };
 
   // Get recent expenses (last 10) - KEEP AS FALLBACK
   const getRecentExpenses = () => {
+    if (!expenses) return [];
     return expenses.slice(0, 10);
   };
 

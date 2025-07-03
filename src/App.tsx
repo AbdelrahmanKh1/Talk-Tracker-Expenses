@@ -14,7 +14,6 @@ import { Loader2 } from "lucide-react";
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Settings = lazy(() => import("./pages/Settings"));
-const Currency = lazy(() => import("./pages/Currency"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -86,14 +85,6 @@ const App = () => {
                     element={
                       <ProtectedRoute>
                         <Settings />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/currency" 
-                    element={
-                      <ProtectedRoute>
-                        <Currency />
                       </ProtectedRoute>
                     } 
                   />

@@ -10,7 +10,8 @@ import {
   DollarSign,
   Zap
 } from 'lucide-react';
-import { useCurrency } from '@/hooks/useCurrency';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { formatCompactNumber } from '@/lib/utils';
 
 interface Expense {
   id: string;
@@ -37,7 +38,7 @@ interface Insight {
 }
 
 export const SmartInsights = ({ expenses, budget, spent, selectedMonth }: SmartInsightsProps) => {
-  const { currency } = useCurrency();
+  const { settings } = useUserSettings();
 
   const insights = useMemo(() => {
     const insightsList: Insight[] = [];
@@ -67,7 +68,7 @@ export const SmartInsights = ({ expenses, budget, spent, selectedMonth }: SmartI
       insightsList.push({
         type: 'warning',
         title: 'Over Budget',
-        description: `You've exceeded your budget by ${currency.symbol} ${(spent - budget).toLocaleString()}. Consider reviewing your spending.`,
+        description: `You've exceeded your budget by ${settings?.base_currency || 'USD'} ${formatCompactNumber(spent - budget)}`,
         icon: <AlertTriangle className="w-5 h-5" />,
         color: 'text-red-600 dark:text-red-400',
         bgColor: 'bg-red-50 dark:bg-red-900/30'
@@ -76,7 +77,7 @@ export const SmartInsights = ({ expenses, budget, spent, selectedMonth }: SmartI
       insightsList.push({
         type: 'warning',
         title: 'Budget Warning',
-        description: `You've used ${budgetPercentage.toFixed(1)}% of your budget. Only ${currency.symbol} ${remainingBudget.toLocaleString()} remaining.`,
+        description: `You've used ${budgetPercentage.toFixed(1)}% of your budget. Only ${settings?.base_currency || 'USD'} ${formatCompactNumber(remainingBudget)} remaining.`,
         icon: <AlertTriangle className="w-5 h-5" />,
         color: 'text-orange-600 dark:text-orange-400',
         bgColor: 'bg-orange-50 dark:bg-orange-900/30'
@@ -132,7 +133,7 @@ export const SmartInsights = ({ expenses, budget, spent, selectedMonth }: SmartI
       insightsList.push({
         type: 'info',
         title: 'High Spending Day Detected',
-        description: `Your highest spending day was ${highestDay.toLocaleString()} ${currency.symbol}, ${(highestDay / averageDaily).toFixed(1)}x your average.`,
+        description: `Your highest spending day was ${highestDay.toLocaleString()} ${settings?.base_currency || 'USD'}, ${(highestDay / averageDaily).toFixed(1)}x your average.`,
         icon: <Calendar className="w-5 h-5" />,
         color: 'text-blue-600 dark:text-blue-400',
         bgColor: 'bg-blue-50 dark:bg-blue-900/30'
@@ -144,7 +145,7 @@ export const SmartInsights = ({ expenses, budget, spent, selectedMonth }: SmartI
       insightsList.push({
         type: 'warning',
         title: 'Projected Over Budget',
-        description: `At current pace, you'll spend ${currency.symbol} ${projectedTotal.toLocaleString()} this month, exceeding your budget by ${currency.symbol} ${(projectedTotal - budget).toLocaleString()}.`,
+        description: `At current pace, you'll spend ${settings?.base_currency || 'USD'} ${formatCompactNumber(projectedTotal)} this month, exceeding your budget by ${formatCompactNumber(projectedTotal - budget)}`,
         icon: <TrendingUp className="w-5 h-5" />,
         color: 'text-red-600 dark:text-red-400',
         bgColor: 'bg-red-50 dark:bg-red-900/30'
@@ -153,7 +154,7 @@ export const SmartInsights = ({ expenses, budget, spent, selectedMonth }: SmartI
       insightsList.push({
         type: 'positive',
         title: 'Under Budget Projection',
-        description: `Great! You're projected to stay under budget by ${currency.symbol} ${(budget - projectedTotal).toLocaleString()}.`,
+        description: `Great! You're projected to stay under budget by ${formatCompactNumber(budget - projectedTotal)}`,
         icon: <CheckCircle className="w-5 h-5" />,
         color: 'text-green-600 dark:text-green-400',
         bgColor: 'bg-green-50 dark:bg-green-900/30'
@@ -166,7 +167,7 @@ export const SmartInsights = ({ expenses, budget, spent, selectedMonth }: SmartI
       insightsList.push({
         type: 'info',
         title: 'Savings Opportunity',
-        description: `Reducing daily spending by 10% could save you ${currency.symbol} ${potentialSavings.toFixed(0)} per day, or ${currency.symbol} ${(potentialSavings * 30).toFixed(0)} per month.`,
+        description: `Reducing daily spending by 10% could save you ${settings?.base_currency || 'USD'} ${formatCompactNumber(potentialSavings)} per day, or ${settings?.base_currency || 'USD'} ${formatCompactNumber(potentialSavings * 30)} per month.`,
         icon: <DollarSign className="w-5 h-5" />,
         color: 'text-blue-600 dark:text-blue-400',
         bgColor: 'bg-blue-50 dark:bg-blue-900/30'
@@ -186,7 +187,7 @@ export const SmartInsights = ({ expenses, budget, spent, selectedMonth }: SmartI
     }
 
     return insightsList.slice(0, 4); // Limit to 4 insights
-  }, [expenses, budget, spent, currency.symbol]);
+  }, [expenses, budget, spent, settings?.base_currency]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">

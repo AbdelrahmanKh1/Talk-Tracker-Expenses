@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AppLogo } from '@/components/AppLogo';
+import { CurrencySelector } from '@/components/CurrencySelector';
 
 // Password validation utilities
 const validatePassword = (password: string) => {
@@ -51,6 +52,8 @@ const Auth = () => {
   const [emailValidation, setEmailValidation] = useState(true);
   const { signIn, signUp, signInWithOAuth, user } = useAuth();
   const navigate = useNavigate();
+  const [baseCurrency, setBaseCurrency] = useState('USD');
+  const [baseCurrencyError, setBaseCurrencyError] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -71,6 +74,7 @@ const Auth = () => {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setBaseCurrencyError('');
 
     try {
       // Input sanitization
@@ -85,6 +89,11 @@ const Auth = () => {
         }
         if (sanitizedName.length > 50) {
           toast.error('Name must be less than 50 characters');
+          setLoading(false);
+          return;
+        }
+        if (!baseCurrency) {
+          setBaseCurrencyError('Please select a base currency');
           setLoading(false);
           return;
         }
@@ -116,7 +125,7 @@ const Auth = () => {
 
       const { error } = isLogin 
         ? await signIn(sanitizedEmail, password)
-        : await signUp(sanitizedEmail, password, sanitizedName);
+        : await signUp(sanitizedEmail, password, sanitizedName, baseCurrency);
 
       if (error) {
         toast.error(error);
@@ -304,7 +313,7 @@ const Auth = () => {
               </div>
 
               {/* Email Auth Form */}
-              <form onSubmit={handleEmailAuth} className="space-y-4">
+              <form onSubmit={handleEmailAuth} className="space-y-6">
                 {!isLogin && (
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -389,6 +398,25 @@ const Auth = () => {
                     </div>
                   )}
                 </div>
+
+                {!isLogin && (
+                  <div className="space-y-2">
+                    <Label htmlFor="base-currency" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Base Currency
+                    </Label>
+                    <CurrencySelector
+                      value={baseCurrency}
+                      onChange={setBaseCurrency}
+                      placeholder="Select your base currency"
+                    />
+                    {baseCurrencyError && (
+                      <div className="text-xs text-red-600 mt-1">{baseCurrencyError}</div>
+                    )}
+                    <small className="text-gray-500 dark:text-gray-400">
+                      This will be your main currency for all dashboard totals, budgets, and calculations. You can change it later in Settings.
+                    </small>
+                  </div>
+                )}
 
                 <Button 
                   type="submit"

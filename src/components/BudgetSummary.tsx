@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Pencil, Target, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
-import { useCurrency } from '@/hooks/useCurrency';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import SetBudgetModal from './SetBudgetModal';
+import { formatCompactNumber } from '@/lib/utils';
 
 export const BudgetSummary = ({
   spent,
@@ -21,7 +22,7 @@ export const BudgetSummary = ({
   selectedMonth: string
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { currency } = useCurrency();
+  const { settings } = useUserSettings();
 
   let status = 'On Track', statusColor = 'text-green-600 dark:text-green-400', statusIcon = <CheckCircle className="w-4 h-4" />;
   if (percent >= 100) { 
@@ -67,8 +68,8 @@ export const BudgetSummary = ({
       {/* Main Amount Display */}
       <div className="mb-6">
         <div className="flex items-end gap-2 mb-2">
-          <span className="text-gray-600 dark:text-gray-400 text-2xl font-medium">{currency.symbol}</span>
-          <span className="text-6xl font-black text-gray-900 dark:text-white leading-none">{monthlyTotal.toLocaleString()}</span>
+          <span className="text-gray-600 dark:text-gray-400 text-2xl font-medium">{settings?.base_currency || 'USD'}</span>
+          <span className="text-6xl font-black text-gray-900 dark:text-white leading-none">{formatCompactNumber(monthlyTotal)}</span>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400">Total spent this month</p>
       </div>
@@ -78,7 +79,7 @@ export const BudgetSummary = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Budget Progress</span>
-            <span className="text-sm font-bold text-gray-900 dark:text-white">{currency.symbol}{budget.toLocaleString()}</span>
+            <span className="text-sm font-bold text-gray-900 dark:text-white">{settings?.base_currency || 'USD'}{formatCompactNumber(budget)}</span>
           </div>
           <span className="text-sm font-bold text-gray-900 dark:text-white">{percent.toFixed(1)}%</span>
         </div>
@@ -113,14 +114,14 @@ export const BudgetSummary = ({
               <p className={`font-bold ${statusColor}`}>{status}</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl">
               <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Remaining</p>
-              <p className="font-bold text-green-600 dark:text-green-400">{currency.symbol}{remaining.toLocaleString()}</p>
+              <p className="font-bold text-green-600 dark:text-green-400">{settings?.base_currency || 'USD'}{formatCompactNumber(remaining)}</p>
             </div>
           </div>
         </div>

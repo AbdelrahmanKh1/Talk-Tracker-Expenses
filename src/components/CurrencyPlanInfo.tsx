@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCurrency } from '@/hooks/useCurrency';
-import { Globe, Crown, Zap, ChevronDown } from 'lucide-react';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { Crown, Zap } from 'lucide-react';
 
 interface CurrencyPlanInfoProps {
   expenseCount: number;
@@ -9,7 +9,7 @@ interface CurrencyPlanInfoProps {
 
 const CurrencyPlanInfo = ({ expenseCount }: CurrencyPlanInfoProps) => {
   const navigate = useNavigate();
-  const { currency } = useCurrency();
+  const { settings } = useUserSettings();
 
   const planLimit = 50;
   const usagePercentage = (expenseCount / planLimit) * 100;
@@ -19,17 +19,14 @@ const CurrencyPlanInfo = ({ expenseCount }: CurrencyPlanInfoProps) => {
     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-b border-blue-100 dark:border-blue-800">
       <div className="max-w-7xl mx-auto px-4 py-2 sm:py-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-          {/* Currency Selector */}
-          <button 
-            onClick={() => navigate('/currency')}
-            className="flex items-center gap-2 hover:bg-white/50 dark:hover:bg-gray-800/50 px-3 py-2 rounded-xl transition-all duration-200 group self-start sm:self-auto"
-          >
+          {/* Base Currency Display */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl self-start sm:self-auto">
             <div className="flex items-center gap-2">
-              <span className="text-xl sm:text-2xl">{currency.flag}</span>
-              <span className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">{currency.code}</span>
-              <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors" />
+              <span className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
+                Base Currency: {settings?.base_currency || 'USD'}
+              </span>
             </div>
-          </button>
+          </div>
 
           {/* Plan Info */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
@@ -65,7 +62,7 @@ const CurrencyPlanInfo = ({ expenseCount }: CurrencyPlanInfoProps) => {
 
             {/* Upgrade Button */}
             <button 
-              onClick={() => navigate('/currency')}
+              onClick={() => navigate('/settings')}
               className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 font-medium text-xs sm:text-sm shadow-lg hover:shadow-xl self-start sm:self-auto"
             >
               <Zap className="w-3 h-3 sm:w-4 sm:h-4" />

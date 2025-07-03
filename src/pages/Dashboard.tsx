@@ -12,7 +12,7 @@ import VoiceInputFab from '@/components/VoiceInputFab';
 import DashboardModals from '@/components/DashboardModals';
 import { AIVoiceModal } from '@/components/AIVoiceModal';
 import { BudgetSummary } from '@/components/BudgetSummary';
-import { useCurrency } from '@/hooks/useCurrency';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import { Loader2, TrendingUp, TrendingDown, DollarSign, Search } from 'lucide-react';
 import { ExpenseAnalytics } from '@/components/ExpenseAnalytics';
 import { SmartInsights } from '@/components/SmartInsights';
@@ -21,10 +21,16 @@ import { EnhancedStatsCards } from '@/components/EnhancedStatsCards';
 import { SearchBar } from '@/components/SearchBar';
 import { Expense, SearchFilters } from '@/types';
 import SetBudgetModal from '@/components/SetBudgetModal';
+import ConnectWalletModal from '@/components/ConnectWalletModal';
+import { Button } from '@/components/ui/button';
+import { formatCompactNumber } from '@/lib/utils';
 // import { PWAInstallPrompt, FloatingInstallButton } from '@/components/PWAInstallPrompt';
+
+type ExpenseSourceFilter = 'wallet' | 'manual' | 'voice';
 
 const Dashboard = () => {
   const { session } = useAuth();
+  const { settings } = useUserSettings();
   const { 
     expenses, 
     isLoading, 
@@ -67,14 +73,14 @@ const Dashboard = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
+  const [isConnectWalletModalOpen, setIsConnectWalletModalOpen] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
-  
-  const { currency: localCurrency } = useCurrency();
+  const [sourceFilter, setSourceFilter] = useState<ExpenseSourceFilter | undefined>(undefined);
 
   // Search handler
   const handleSearch = (term: string, filters: SearchFilters): void => {
@@ -89,7 +95,7 @@ const Dashboard = () => {
     if (searchTerm || Object.keys(searchFilters).length > 0) {
       return filteredExpenses;
     }
-    return getExpensesForMonth(selectedMonth);
+    return getExpensesForMonth(selectedMonth, sourceFilter);
   };
 
   const handleExpenseEdit = (expense: Expense): void => {
@@ -135,7 +141,7 @@ const Dashboard = () => {
     await setBudget({ 
       month, 
       budgetAmount, 
-      budgetCurrency: budgetStatus?.currency || localCurrency.code 
+      budgetCurrency: budgetStatus?.currency || settings?.base_currency || 'USD'
     });
     
     // Refresh all budget data to ensure consistency across all months
@@ -172,16 +178,23 @@ const Dashboard = () => {
     if (navigator.share) {
       navigator.share({
         title: `Financial Report - ${selectedMonth}`,
-        text: `I spent ${localCurrency.symbol} ${monthlyTotal.toLocaleString()} in ${selectedMonth}. Track your expenses with our app!`,
+        text: `I spent ${settings?.base_currency || 'USD'} ${formatCompactNumber(monthlyTotal)} in ${selectedMonth}. Track your expenses with our app!`,
         url: window.location.href
       });
     } else {
       // Fallback: copy to clipboard
       navigator.clipboard.writeText(
-        `Financial Report - ${selectedMonth}\nTotal Spent: ${localCurrency.symbol} ${monthlyTotal.toLocaleString()}\nExpenses: ${monthExpenses.length}`
+        `Financial Report - ${selectedMonth}\nTotal Spent: ${settings?.base_currency || 'USD'} ${formatCompactNumber(monthlyTotal)}\nExpenses: ${monthExpenses.length}`
       );
       toast.success('Report copied to clipboard!');
     }
+  };
+
+  const handleConnectWallet = () => {
+    // For now, this will just open the modal.
+    // Later, it will initiate the wallet connection flow.
+    console.log('Connect wallet clicked');
+    setIsConnectWalletModalOpen(true);
   };
 
   const handleOpenSettings = (): void => {
@@ -246,6 +259,17 @@ const Dashboard = () => {
     return `${targetYear}-${String(monthIndex + 1).padStart(2, '0')}`;
   };
 
+  const quickActions = {
+    onAddExpense: () => setIsAddModalOpen(true),
+    onVoiceInput: () => setIsVoiceModalOpen(true),
+    onSetBudget: openSetBudgetModal,
+    onViewAnalytics: () => setShowAnalytics(!showAnalytics),
+    onConnectWallet: handleConnectWallet,
+    onShareReport: handleShareReport,
+    onExportData: handleExportData,
+    onOpenSettings: handleOpenSettings
+  };
+
   // Loading state with better design
   if (isLoading) {
     return (
@@ -303,15 +327,7 @@ const Dashboard = () => {
         />
 
         {/* Quick Actions */}
-        <QuickActions
-          onAddExpense={() => setIsAddModalOpen(true)}
-          onVoiceInput={() => setIsVoiceModalOpen(true)}
-          onSetBudget={openSetBudgetModal}
-          onViewAnalytics={() => setShowAnalytics(!showAnalytics)}
-          onOpenSettings={handleOpenSettings}
-          onExportData={handleExportData}
-          onShareReport={handleShareReport}
-        />
+        <QuickActions {...quickActions} />
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -359,6 +375,16 @@ const Dashboard = () => {
                   </p>
                 </div>
               )}
+            </div>
+
+            <div className="flex items-center justify-between mt-6 mb-4">
+                <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Recent Transactions</h2>
+                <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+                    <Button variant={!sourceFilter ? 'primary' : 'ghost'} size="sm" onClick={() => setSourceFilter(undefined)}>All</Button>
+                    <Button variant={sourceFilter === 'wallet' ? 'primary' : 'ghost'} size="sm" onClick={() => setSourceFilter('wallet')}>Wallet</Button>
+                    <Button variant={sourceFilter === 'manual' ? 'primary' : 'ghost'} size="sm" onClick={() => setSourceFilter('manual')}>Manual</Button>
+                    <Button variant={sourceFilter === 'voice' ? 'primary' : 'ghost'} size="sm" onClick={() => setSourceFilter('voice')}>Voice</Button>
+                </div>
             </div>
 
             <div className="relative">
@@ -425,6 +451,18 @@ const Dashboard = () => {
         isOpen={isVoiceModalOpen}
         onClose={() => setIsVoiceModalOpen(false)}
         selectedMonth={getSelectedMonthForAI()}
+      />
+
+      <ConnectWalletModal
+        isOpen={isConnectWalletModalOpen}
+        onClose={() => setIsConnectWalletModalOpen(false)}
+        onConnect={() => {
+          // Here you would initiate the Plaid link flow, for example
+          console.log('Connecting to wallet provider...');
+          setIsConnectWalletModalOpen(false);
+          toast.success('Wallet connection flow initiated (simulation).');
+        }}
+        isLoading={false} // This will be managed by the wallet connection hook later
       />
 
       {/* PWA Install Components */}

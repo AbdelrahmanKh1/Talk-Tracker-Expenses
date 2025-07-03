@@ -59,8 +59,7 @@ CREATE TABLE IF NOT EXISTS voice_usage (
   UNIQUE (user_id, month_id)
 );
 
--- Add active_currency to user_settings
-ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS active_currency TEXT;
+-- Note: user_settings table will be created in a later migration
 
 -- RLS for voice_usage
 ALTER TABLE public.voice_usage ENABLE ROW LEVEL SECURITY;

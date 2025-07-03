@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Plus, Receipt, TrendingUp, Calendar } from 'lucide-react';
 import SwipeableExpenseItem from './SwipeableExpenseItem';
-import { useCurrency } from '@/hooks/useCurrency';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import { Expense } from '@/types';
+import { formatCompactNumber } from '@/lib/utils';
 
 interface RecentExpensesListProps {
   expenses: Expense[];
@@ -21,7 +22,7 @@ const RecentExpensesList = ({
   isSearchResults = false,
   searchTerm = ''
 }: RecentExpensesListProps) => {
-  const { currency } = useCurrency();
+  const { settings } = useUserSettings();
   const [openActionId, setOpenActionId] = useState<string | null>(null);
 
   const handleToggle = (id: string): void => {
@@ -66,13 +67,13 @@ const RecentExpensesList = ({
           <div className="text-center">
             <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Spent</p>
             <p className="text-lg font-bold text-gray-900 dark:text-white">
-              {currency.symbol} {totalAmount.toLocaleString()}
+              {settings?.base_currency || 'USD'} {formatCompactNumber(totalAmount)}
             </p>
           </div>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Average</p>
             <p className="text-lg font-bold text-gray-900 dark:text-white">
-              {currency.symbol} {averageAmount.toFixed(0)}
+              {settings?.base_currency || 'USD'} {formatCompactNumber(averageAmount)}
             </p>
           </div>
         </div>

@@ -1,14 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { X, Utensils, Car, ShoppingBag, HeartPulse, Gamepad2, Receipt, Wallet, Box, Plus, TrendingUp } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { getExchangeRate } from '@/lib/exchangeRate';
+import { toast } from 'sonner';
+import { currencyOptions } from '@/lib/currencies';
+import { CurrencySelector } from '@/components/CurrencySelector';
 
 interface AddExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (data: { description: string; amount: number; category?: string; created_at: string }) => void;
+  onAdd: (data: { description: string; amount: number; original_amount: number; original_currency: string; base_currency: string; category?: string; created_at: string; rate: number }) => void;
   isLoading: boolean;
   selectedMonth?: string;
 }
@@ -46,8 +51,10 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Others');
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const { settings, isLoading: isSettingsLoading } = useUserSettings();
+  const [currency, setCurrency] = useState(settings?.base_currency || 'USD');
 
-  const { currency } = useCurrency();
+  const { currency: useCurrencyCurrency } = useCurrency();
 
   const categories = [
     'Food',
@@ -60,25 +67,40 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
     'Others',
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (settings?.base_currency) setCurrency(settings.base_currency);
+  }, [settings?.base_currency]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description || !amount) return;
 
-    // Use today's date for the expense
-    const today = new Date();
-    const created_at = today.toISOString();
+    let convertedAmount = parseFloat(amount);
+    let rate = 1;
+    if (currency !== settings?.base_currency && settings?.base_currency) {
+      rate = await getExchangeRate(currency, settings.base_currency) || 0;
+      if (rate === 0) {
+        toast.error('Failed to fetch exchange rate. Please try again.');
+        return;
+      }
+      convertedAmount = parseFloat((parseFloat(amount) * rate).toFixed(2));
+    }
 
     onAdd({
       description,
-      amount: parseFloat(amount),
+      amount: convertedAmount,
+      original_amount: parseFloat(amount),
+      original_currency: currency,
+      base_currency: settings?.base_currency,
       category,
-      created_at
+      created_at: new Date().toISOString(),
+      rate,
     });
 
-    // Reset form
     setDescription('');
     setAmount('');
     setCategory('Others');
+    setCurrency(settings?.base_currency || 'USD');
     onClose();
   };
 
@@ -129,11 +151,11 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
           {/* Amount Field */}
           <div className="space-y-2">
             <Label htmlFor="amount" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-              Amount ({currency.code})
+              Amount ({settings?.base_currency || 'USD'})
             </Label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 font-medium">
-                {currency.symbol}
+                {settings?.base_currency || 'USD'}
               </span>
               <Input
                 id="amount"
@@ -146,6 +168,21 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
                 required
               />
             </div>
+          </div>
+
+          {/* Currency Dropdown */}
+          <div className="space-y-2">
+            <Label htmlFor="currency" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+              Transaction Currency
+            </Label>
+            <CurrencySelector
+              value={currency}
+              onChange={setCurrency}
+              placeholder="Select transaction currency"
+            />
+            <small className="text-gray-500 dark:text-gray-400">
+              Select the currency of this transaction. The amount will be converted to your base currency ({settings?.base_currency || 'USD'}) for dashboard calculations.
+            </small>
           </div>
 
           {/* Category Selection */}

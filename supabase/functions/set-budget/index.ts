@@ -59,19 +59,38 @@ serve(async (req) => {
       budgetCurrency = settings?.active_currency || 'EGP';
     }
 
-    // Upsert budget for this user and month
-    const { error } = await supabase
+    // First, try to update existing budget
+    const { data: existingBudget, error: updateError } = await supabase
       .from('user_budgets')
-      .upsert({
-        user_id: user.id,
-        month,
-        budget_amount: budgetAmount,
+      .update({
+        amount: budgetAmount,
         budget_currency: budgetCurrency,
-        created_at: new Date().toISOString(),
-      }, { onConflict: ['user_id', 'month'] });
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id)
+      .eq('month_id', month)
+      .select();
 
-    if (error) {
-      throw new Error('Failed to set budget: ' + error.message);
+    // If no rows were updated, insert a new budget
+    if (!existingBudget || existingBudget.length === 0) {
+      const { error: insertError } = await supabase
+        .from('user_budgets')
+        .insert({
+          user_id: user.id,
+          month_id: month,
+          amount: budgetAmount,
+          budget_currency: budgetCurrency,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+
+      if (insertError) {
+        console.error('Insert error:', insertError);
+        throw new Error('Failed to create budget: ' + insertError.message);
+      }
+    } else if (updateError) {
+      console.error('Update error:', updateError);
+      throw new Error('Failed to update budget: ' + updateError.message);
     }
 
     return new Response(
@@ -80,6 +99,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
+    console.error('Set budget error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 

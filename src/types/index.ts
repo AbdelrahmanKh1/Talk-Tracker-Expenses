@@ -26,6 +26,10 @@ export interface Expense {
   created_at: string;
   updated_at?: string;
   currency_code?: string;
+  original_amount?: number;
+  original_currency?: string;
+  base_currency?: string;
+  rate?: number;
 }
 
 export interface ExpenseInput {

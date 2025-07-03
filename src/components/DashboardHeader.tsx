@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Settings, User, Bell, Menu, X, Globe } from 'lucide-react';
+import { LogOut, Settings, User, Bell, Menu, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { AppLogo, AppLogoText } from './AppLogo';
@@ -53,14 +53,6 @@ const DashboardHeader = () => {
             <ThemeToggle />
             
             <button
-              onClick={() => navigate('/currency')}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors duration-200 dark:hover:bg-gray-800"
-              title="Currency Settings"
-            >
-              <Globe className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-            </button>
-            
-            <button
               onClick={() => navigate('/settings')}
               className="p-2 hover:bg-gray-100 rounded-xl transition-colors duration-200 dark:hover:bg-gray-800"
               title="Settings"
@@ -92,13 +84,6 @@ const DashboardHeader = () => {
                 </h2>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => navigate('/currency')}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors duration-200 dark:text-gray-400 dark:hover:bg-gray-800"
-                >
-                  <Globe className="w-4 h-4" />
-                  Currency
-                </button>
                 <button
                   onClick={handleSignOut}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 dark:hover:bg-red-900/20"

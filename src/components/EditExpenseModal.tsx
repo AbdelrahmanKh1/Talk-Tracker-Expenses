@@ -4,7 +4,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { X, Plus, Trash2, Utensils, Car, ShoppingBag, HeartPulse, Gamepad2, Receipt, Wallet, Box, Edit3, TrendingUp } from 'lucide-react';
-import { useCurrency } from '@/hooks/useCurrency';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { getExchangeRate } from '@/lib/exchangeRate';
+import { toast } from 'sonner';
+import { currencyOptions } from '@/lib/currencies';
+import { CurrencySelector } from '@/components/CurrencySelector';
 
 interface ExpenseItem {
   id: string;
@@ -61,9 +65,13 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
   onUpdate,
   isLoading,
 }) => {
-  const { currency } = useCurrency();
+  const { settings } = useUserSettings();
   const [items, setItems] = useState<ExpenseItem[]>([]);
+  const [itemCurrencies, setItemCurrencies] = useState<Record<string, string>>({});
+  const [itemRates, setItemRates] = useState<Record<string, number>>({});
+  const [itemConverted, setItemConverted] = useState<Record<string, number>>({});
   const [openCategoryModalId, setOpenCategoryModalId] = useState<string | null>(null);
+
 
   React.useEffect(() => {
     if (expense && isOpen) {
@@ -92,8 +100,21 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
           date: expense.date,
         }]);
       }
+      // Set default currency for each item
+      const defaultCurrency = expense.currency_code || settings?.base_currency || 'USD';
+      setItemCurrencies({});
+      setItemRates({});
+      setItemConverted({});
+      setTimeout(() => {
+        setItems((prev) => prev.map(item => {
+          setItemCurrencies(curr => ({ ...curr, [item.id]: defaultCurrency }));
+          setItemRates(curr => ({ ...curr, [item.id]: 1 }));
+          setItemConverted(curr => ({ ...curr, [item.id]: item.amount }));
+          return item;
+        }));
+      }, 0);
     }
-  }, [expense, isOpen]);
+  }, [expense, isOpen, settings?.base_currency]);
 
   const addNewItem = () => {
     setItems([...items, {
@@ -111,26 +132,53 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
     }
   };
 
+  const handleCurrencyChange = async (id: string, newCurrency: string, amount: number) => {
+    setItemCurrencies(curr => ({ ...curr, [id]: newCurrency }));
+    if (newCurrency !== settings?.base_currency) {
+      const rate = await getExchangeRate(newCurrency, settings?.base_currency || 'USD') || 0;
+      if (rate === 0) {
+        toast.error('Failed to fetch exchange rate. Please try again.');
+        setItemRates(curr => ({ ...curr, [id]: 1 }));
+        setItemConverted(curr => ({ ...curr, [id]: amount }));
+        return;
+      }
+      setItemRates(curr => ({ ...curr, [id]: rate }));
+      setItemConverted(curr => ({ ...curr, [id]: parseFloat((amount * rate).toFixed(2)) }));
+    } else {
+      setItemRates(curr => ({ ...curr, [id]: 1 }));
+      setItemConverted(curr => ({ ...curr, [id]: amount }));
+    }
+  };
+
   const updateItem = (id: string, field: keyof ExpenseItem, value: string | number) => {
     setItems(items.map(item => 
       item.id === id ? { ...item, [field]: value } : item
     ));
+    if (field === 'amount') {
+      const curr = itemCurrencies[id] || settings?.base_currency || 'USD';
+      handleCurrencyChange(id, curr, Number(value));
+    }
+  };
+
+  const handleCurrencyDropdown = (id: string, newCurrency: string) => {
+    const item = items.find(i => i.id === id);
+    handleCurrencyChange(id, newCurrency, item ? item.amount : 0);
   };
 
   const handleSave = () => {
     if (!expense) return;
-    
     const validItems = items.filter(item => 
       item.description.trim() && item.amount > 0
     );
-    
     if (validItems.length === 0) return;
-    
-    onUpdate(expense.id, validItems.map(({ description, amount, category, date }) => ({
+    onUpdate(expense.id, validItems.map(({ description, amount, category, date }, idx) => ({
       description,
-      amount,
+      amount: itemConverted[items[idx].id] || amount,
       category,
       date,
+      original_amount: amount,
+      original_currency: itemCurrencies[items[idx].id] || settings?.base_currency || 'USD',
+      rate: itemRates[items[idx].id] || 1,
     })));
   };
 
@@ -195,11 +243,11 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
 
               <div className="space-y-2">
                 <Label htmlFor={`amount-${item.id}`} className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Amount ({currency.code})
+                  Amount ({itemCurrencies[item.id] || settings?.base_currency || 'USD'})
                 </Label>
-                <div className="relative">
+                <div className="relative flex gap-2">
                   <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 font-medium">
-                    {currency.symbol}
+                    {currencyOptions.find(opt => opt.code === (itemCurrencies[item.id] || settings?.base_currency || 'USD'))?.code || settings?.base_currency || 'USD'}
                   </span>
                   <Input
                     id={`amount-${item.id}`}
@@ -211,7 +259,23 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
                     step="0.01"
                     className="h-12 text-base pl-12 border-gray-200 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl transition-all duration-200 dark:bg-gray-700 dark:text-white"
                   />
+                  <div className="w-1/2">
+                    <CurrencySelector
+                      value={itemCurrencies[item.id] || settings?.base_currency || 'USD'}
+                      onChange={(newCurrency) => handleCurrencyDropdown(item.id, newCurrency)}
+                      placeholder="Select currency"
+                    />
+                  </div>
                 </div>
+                {/* Show converted amount and rate if currency changed */}
+                {itemCurrencies[item.id] && itemCurrencies[item.id] !== settings?.base_currency && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Converted: {itemConverted[item.id] || item.amount} {settings?.base_currency || 'USD'} (Rate: {itemRates[item.id] || 1})
+                  </div>
+                )}
+                <small className="text-gray-500 dark:text-gray-400">
+                  Transaction currency. Amount will be converted to your base currency ({settings?.base_currency || 'USD'}) for dashboard calculations.
+                </small>
               </div>
 
               <div className="space-y-2">

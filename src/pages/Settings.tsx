@@ -28,8 +28,19 @@ import {
   X,
   Moon,
   Sun,
-  Monitor
+  Monitor,
+  Wallet
 } from 'lucide-react';
+import ConnectWalletModal from '@/components/ConnectWalletModal';
+import { useWallets } from '@/hooks/useWallets';
+import PlaidLink from '@/components/PlaidLink';
+import { syncWalletTransactions, renameWallet, getWalletMonthlyTotals, getWalletTransactionsForReview, saveWalletExpenses, addTestWallet } from '@/services/walletService';
+import { WalletProviderLogo } from '@/components/WalletProviderLogo';
+import { WalletTransactionReviewModal } from '@/components/WalletTransactionReviewModal';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { CurrencySelector } from '@/components/CurrencySelector';
+
+
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -37,9 +48,30 @@ const Settings = () => {
   const { settings, updateUserSettings, isUpdating, getUserName } = useUserSettings();
   const { theme, setTheme } = useTheme();
   const { budgetStatus, setBudget, isSettingBudget, getCurrentMonth } = useBudget();
+  const { 
+    wallets, 
+    isLoading: isLoadingWallets,
+    isConnecting,
+    linkToken,
+    error: walletsError, 
+    connectWallet, 
+    disconnectWallet,
+    exchangePublicToken,
+    fetchWallets
+  } = useWallets();
   const [currentBudget, setCurrentBudget] = useState(0);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
+  const [isConnectWalletModalOpen, setIsConnectWalletModalOpen] = useState(false);
+  const [renamingWalletId, setRenamingWalletId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [syncingWalletId, setSyncingWalletId] = useState<string | null>(null);
+  const [walletTotals, setWalletTotals] = useState<Record<string, number>>({});
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewTransactions, setReviewTransactions] = useState<any[]>([]);
+  const [reviewWalletId, setReviewWalletId] = useState<string | null>(null);
+  const [showBaseCurrencyConfirm, setShowBaseCurrencyConfirm] = useState(false);
+  const [pendingBaseCurrency, setPendingBaseCurrency] = useState<string | null>(null);
 
   // Update local state when budget status changes
   useEffect(() => {
@@ -54,6 +86,20 @@ const Settings = () => {
       setNameValue(settings.full_name);
     }
   }, [settings?.full_name]);
+
+  // Fetch monthly totals per wallet (real)
+  useEffect(() => {
+    const fetchTotals = async () => {
+      if (wallets.length > 0) {
+        // Use the current month in YYYY-MM format
+        const now = new Date();
+        const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const { data, error } = await getWalletMonthlyTotals(month);
+        if (!error && data) setWalletTotals(data);
+      }
+    };
+    fetchTotals();
+  }, [wallets]);
 
   // Save budget
   const handleSaveBudget = async (newBudget: number) => {
@@ -99,6 +145,74 @@ const Settings = () => {
     const name = getUserName();
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
+
+  const handleRenameWallet = async (walletId: string, newName: string) => {
+    try {
+      const { error } = await renameWallet(walletId, newName);
+      if (error) throw error;
+      toast.success('Wallet renamed!');
+      setRenamingWalletId(null);
+      fetchWallets();
+    } catch (e) {
+      toast.error('Failed to rename wallet.');
+    }
+  };
+
+  const handleSyncWallet = async (walletId: string, providerItemId: string) => {
+    setSyncingWalletId(walletId);
+    try {
+      const { data, error } = await syncWalletTransactions(providerItemId);
+      if (error) throw error;
+      toast.success(`Wallet synced: ${data.added} new, ${data.modified} updated, ${data.removed} removed.`);
+      // Fetch transactions for review
+      const review = await getWalletTransactionsForReview(walletId);
+      if (review.data && review.data.length > 0) {
+        setReviewTransactions(review.data.map(tx => ({ ...tx, wallet_id: walletId })));
+        setReviewWalletId(walletId);
+        setReviewModalOpen(true);
+      }
+    } catch (e) {
+      toast.error('Failed to sync wallet.');
+    } finally {
+      setSyncingWalletId(null);
+    }
+  };
+
+  const handleSaveReviewedExpenses = async (edited: any[]) => {
+    try {
+      const { error } = await saveWalletExpenses(edited);
+      if (error) throw error;
+      toast.success('Expenses saved!');
+      setReviewModalOpen(false);
+      setReviewTransactions([]);
+      setReviewWalletId(null);
+      fetchWallets();
+    } catch (e) {
+      toast.error('Failed to save expenses.');
+    }
+  };
+
+  const handleAddTestWallet = async () => {
+    try {
+      const { data, error } = await addTestWallet();
+      if (error) throw error;
+      toast.success('Test wallet added!');
+      fetchWallets();
+    } catch (e) {
+      toast.error('Failed to add test wallet.');
+    }
+  };
+
+  function formatLastSync(ts?: string | null) {
+    if (!ts) return 'Never';
+    const date = new Date(ts);
+    const now = new Date();
+    const diff = (now.getTime() - date.getTime()) / 1000;
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
+    return date.toLocaleString();
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -191,9 +305,218 @@ const Settings = () => {
                 </div>
               )}
               <p className="text-gray-500 dark:text-gray-400">{user?.email}</p>
+              {/* Base Currency Section */}
+              <div className="mt-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 bg-teal-100 dark:bg-teal-900/30 rounded-lg flex items-center justify-center">
+                    <Globe className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Base Currency</label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Your main currency for all calculations</p>
+                  </div>
+                </div>
+                
+                <CurrencySelector
+                  value={settings?.base_currency || ''}
+                  onChange={(currencyCode) => {
+                    setPendingBaseCurrency(currencyCode);
+                    setShowBaseCurrencyConfirm(true);
+                  }}
+                  placeholder="Select your base currency"
+                  className="mb-3"
+                />
+                
+                <div className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                  <p className="mb-2">
+                    <strong>What is a base currency?</strong> This is your main currency for all dashboard totals, budgets, and calculations. 
+                    All expenses in other currencies will be converted to this currency for display.
+                  </p>
+                  <p>
+                    <strong>Note:</strong> Changing your base currency will affect all future conversions and dashboard calculations. 
+                    Historical data will remain in their original currencies.
+                  </p>
+                </div>
+
+                {/* Confirmation Dialog */}
+                {showBaseCurrencyConfirm && (
+                  <div className="mt-4 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl">
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Shield className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                          Change Base Currency?
+                        </h4>
+                        <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
+                          Are you sure you want to change your base currency to{' '}
+                          <span className="font-bold">{pendingBaseCurrency}</span>? 
+                          This will affect all future conversions and dashboard calculations.
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => {
+                              if (pendingBaseCurrency) {
+                                updateUserSettings({ base_currency: pendingBaseCurrency });
+                                toast.success(`Base currency changed to ${pendingBaseCurrency}`);
+                              }
+                              setShowBaseCurrencyConfirm(false);
+                              setPendingBaseCurrency(null);
+                            }}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Yes, Change
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setShowBaseCurrencyConfirm(false);
+                              setPendingBaseCurrency(null);
+                            }}
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Wallet & Connections Section */}
+        <TooltipProvider>
+          <div>
+            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-semibold mb-4 uppercase tracking-wide flex items-center gap-2">
+              <Wallet className="w-4 h-4" />
+              Wallet & Connections
+            </h3>
+            <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
+              {isLoadingWallets ? (
+                <div className="flex items-center justify-center p-8">
+                  <div className="w-6 h-6 border-4 border-gray-200 dark:border-gray-600 border-t-blue-500 rounded-full animate-spin"></div>
+                </div>
+              ) : walletsError ? (
+                <div className="text-center p-4 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300">
+                  <p>Error loading wallets. Please try again later.</p>
+                </div>
+              ) : wallets.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700">
+                    <div className="w-12 h-12 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 rounded-2xl flex items-center justify-center mb-4">
+                      <Wallet className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+                    </div>
+                    <h4 className="font-bold text-gray-800 dark:text-white">No Wallets Connected</h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Link your bank account to automatically import transactions.</p>
+                    <PlaidLink token={linkToken} onLinkSuccess={exchangePublicToken}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            onClick={() => !linkToken && connectWallet()}
+                            disabled={isConnecting}
+                            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                          >
+                            {isConnecting && !linkToken ? 'Preparing...' : 'Connect a New Wallet'}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Connect a new wallet. You must give consent and can disconnect at any time.</TooltipContent>
+                      </Tooltip>
+                    </PlaidLink>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex justify-end mb-2">
+                    <Button size="sm" variant="outline" onClick={handleAddTestWallet}>
+                      Add Test Wallet (Demo)
+                    </Button>
+                  </div>
+                  {wallets.map((wallet) => (
+                    <div key={wallet.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-4">
+                        <WalletProviderLogo provider={wallet.provider} className="w-10 h-10 rounded-xl flex items-center justify-center" />
+                        <div>
+                          {renamingWalletId === wallet.id ? (
+                            <div className="flex gap-2 items-center">
+                              <input
+                                value={renameValue}
+                                onChange={e => setRenameValue(e.target.value)}
+                                className="px-2 py-1 rounded border border-gray-300 dark:bg-gray-800 dark:text-white"
+                                autoFocus
+                              />
+                              <Button size="sm" onClick={() => handleRenameWallet(wallet.id, renameValue)}>Save</Button>
+                              <Button size="sm" variant="outline" onClick={() => setRenamingWalletId(null)}>Cancel</Button>
+                            </div>
+                          ) : (
+                            <div className="flex gap-2 items-center">
+                              <span className="font-semibold text-gray-900 dark:text-white">{wallet.wallet_name || 'Linked Account'}</span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button size="sm" variant="ghost" onClick={() => { setRenamingWalletId(wallet.id); setRenameValue(wallet.wallet_name || ''); }}>Rename</Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Rename this wallet for easier identification.</TooltipContent>
+                              </Tooltip>
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Provider: {wallet.provider}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Last Sync: {formatLastSync(wallet.last_synced_at)}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Monthly Total: <span className="font-bold">${walletTotals[wallet.id] || 0}</span></div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2 items-end">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleSyncWallet(wallet.id, wallet.provider_item_id)}
+                              disabled={syncingWalletId === wallet.id}
+                            >
+                              {syncingWalletId === wallet.id ? 'Syncing...' : 'Sync Now'}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Sync this wallet to fetch the latest transactions.</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => disconnectWallet(wallet.id)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Disconnect
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Disconnect and delete all data for this wallet. This cannot be undone.</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </div>
+                  ))}
+                  <PlaidLink token={linkToken} onLinkSuccess={exchangePublicToken}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          onClick={() => !linkToken && connectWallet()}
+                          disabled={isConnecting}
+                          className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                        >
+                          {isConnecting && !linkToken ? 'Preparing...' : 'Connect Another Wallet'}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Connect another wallet. You can manage multiple accounts.</TooltipContent>
+                    </Tooltip>
+                  </PlaidLink>
+                </div>
+              )}
+            </div>
+          </div>
+        </TooltipProvider>
 
         {/* Theme Section */}
         <div>
@@ -393,6 +716,23 @@ const Settings = () => {
           <p className="text-sm text-gray-400 dark:text-gray-500">Version 1.0.0</p>
         </div>
       </div>
+
+      <ConnectWalletModal
+        isOpen={isConnectWalletModalOpen}
+        onClose={() => setIsConnectWalletModalOpen(false)}
+        onConnect={async () => {
+          setIsConnectWalletModalOpen(false);
+          await connectWallet();
+        }}
+        isLoading={isConnecting}
+      />
+
+      <WalletTransactionReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        transactions={reviewTransactions}
+        onSave={handleSaveReviewedExpenses}
+      />
     </div>
   );
 };
