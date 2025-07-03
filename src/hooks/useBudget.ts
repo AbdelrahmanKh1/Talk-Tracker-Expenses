@@ -85,7 +85,11 @@ export const useBudget = (selectedMonth?: string) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ user_id: user.id, month, budget_amount: budgetAmount, budget_currency: budgetCurrency || localCurrency.code }),
+        body: JSON.stringify({
+          month,
+          budget_amount: budgetAmount,
+          budget_currency: budgetCurrency || localCurrency.code
+        }),
       });
 
       if (!res.ok) {
