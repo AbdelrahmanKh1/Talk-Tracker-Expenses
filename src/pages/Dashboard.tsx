@@ -423,6 +423,7 @@ const Dashboard = () => {
               <X className="w-6 h-6" />
             </button>
             <div className="overflow-y-auto max-h-[80vh]">
+              <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100 text-center">Spending Analytics</h2>
               <ExpenseAnalytics
                 expenses={monthExpenses}
                 selectedMonth={selectedMonth}
@@ -446,6 +447,7 @@ const Dashboard = () => {
               <X className="w-6 h-6" />
             </button>
             <div className="overflow-y-auto max-h-[80vh]">
+              <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100 text-center">Smart Insights</h2>
               <SmartInsights
                 expenses={monthExpenses}
                 budget={budgetStatus?.budget || 0}
