@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { X, Utensils, Car, ShoppingBag, HeartPulse, Gamepad2, Receipt, Wallet, Box, Plus, TrendingUp } from 'lucide-react';
+import { X, Utensils, Car, ShoppingBag, HeartPulse, Gamepad2, Receipt, Wallet, Box, Plus, TrendingUp, BookOpen, Plane, Scissors, Home, Briefcase } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { getExchangeRate } from '@/lib/exchangeRate';
@@ -20,12 +20,17 @@ interface AddExpenseModalProps {
 
 const CATEGORY_ICONS: Record<string, JSX.Element> = {
   Food: <Utensils size={24} strokeWidth={2.2} className="text-orange-500" />,
-  Transport: <Car size={24} strokeWidth={2.2} className="text-blue-500" />,
+  Transportation: <Car size={24} strokeWidth={2.2} className="text-blue-500" />,
   Shopping: <ShoppingBag size={24} strokeWidth={2.2} className="text-purple-500" />,
-  Health: <HeartPulse size={24} strokeWidth={2.2} className="text-red-500" />,
+  Utilities: <Receipt size={24} strokeWidth={2.2} className="text-yellow-500" />,
   Entertainment: <Gamepad2 size={24} strokeWidth={2.2} className="text-green-500" />,
-  Bills: <Receipt size={24} strokeWidth={2.2} className="text-yellow-500" />,
-  Income: <Wallet size={24} strokeWidth={2.2} className="text-emerald-500" />,
+  Health: <HeartPulse size={24} strokeWidth={2.2} className="text-red-500" />,
+  Fitness: <TrendingUp size={24} strokeWidth={2.2} className="text-pink-500" />,
+  Education: <BookOpen size={24} strokeWidth={2.2} className="text-indigo-500" />,
+  Travel: <Plane size={24} strokeWidth={2.2} className="text-cyan-500" />,
+  'Personal care': <Scissors size={24} strokeWidth={2.2} className="text-rose-500" />,
+  Home: <Home size={24} strokeWidth={2.2} className="text-lime-500" />,
+  Work: <Briefcase size={24} strokeWidth={2.2} className="text-blue-900 dark:text-amber-400" />,
   Others: <Box size={24} strokeWidth={2.2} className="text-gray-500" />,
 };
 
@@ -58,12 +63,17 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
 
   const categories = [
     'Food',
-    'Transport',
+    'Transportation',
     'Shopping',
-    'Health',
+    'Utilities',
     'Entertainment',
-    'Bills',
-    'Income',
+    'Health',
+    'Fitness',
+    'Education',
+    'Travel',
+    'Personal care',
+    'Home',
+    'Work',
     'Others',
   ];
 
@@ -142,10 +152,13 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Coffee, Lunch, Uber ride"
+              placeholder="e.g. Coffee 15, Uber ride 30, category: Food, date: 2024-07-01"
               className="h-12 text-base border-gray-200 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500/20 rounded-xl transition-all duration-200 dark:bg-gray-700 dark:text-white"
               required
             />
+            <small className="text-gray-500 dark:text-gray-400">
+              Example: Coffee 15, category: Food, date: 2024-07-01. Categories: Food, Transportation, Shopping, Utilities, Entertainment, Health, Fitness, Education, Travel, Personal care, Home, Work, Others.
+            </small>
           </div>
 
           {/* Amount Field */}
@@ -199,52 +212,32 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               <div className={`p-2 rounded-lg ${CATEGORY_COLORS[category]}`}>
                 {CATEGORY_ICONS[category] || CATEGORY_ICONS['Others']}
               </div>
-              <div className="flex-1">
-                <span className="capitalize font-medium text-gray-900 dark:text-white">{category}</span>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Tap to change category</p>
-              </div>
-              <div className="text-gray-400 dark:text-gray-500 group-hover:text-teal-500 transition-colors">
-                <TrendingUp className="w-5 h-5" />
-              </div>
+              <span className="font-semibold text-base text-gray-800 dark:text-white">{category}</span>
+              <span className="ml-auto text-xs text-gray-400 group-hover:text-teal-500">Change</span>
             </button>
-          </div>
-
-          {/* Category Modal */}
-          {isCategoryModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-              <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl max-w-md w-full mx-4 animate-in zoom-in-95 duration-200 border border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Select Category</h3>
-                  <button
-                    onClick={() => setIsCategoryModalOpen(false)}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
-                  >
-                    <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      aria-label={`Select category: ${cat}`}
-                      onClick={() => { setCategory(cat); setIsCategoryModalOpen(false); }}
-                      className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-                        category === cat 
-                          ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30 scale-105 shadow-lg' 
-                          : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      <div className={`p-2 rounded-lg mb-2 ${CATEGORY_COLORS[cat]}`}>
-                        {CATEGORY_ICONS[cat] || CATEGORY_ICONS['Others']}
-                      </div>
-                      <span className="capitalize text-gray-900 dark:text-white">{cat}</span>
-                    </button>
-                  ))}
+            {isCategoryModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setIsCategoryModalOpen(false)}>
+                <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                  <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">Select Category</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {categories.map(cat => (
+                      <button
+                        key={cat}
+                        type="button"
+                        className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all duration-150 focus:outline-none ${category === cat ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20' : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-teal-300 dark:hover:border-teal-500 hover:bg-teal-50/50 dark:hover:bg-teal-900/20'}`}
+                        onClick={() => { setCategory(cat); setIsCategoryModalOpen(false); }}
+                        aria-label={cat}
+                      >
+                        <div className="mb-1">{CATEGORY_ICONS[cat] || CATEGORY_ICONS['Others']}</div>
+                        <span className="text-sm font-medium text-gray-800 dark:text-white">{cat}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <button className="mt-6 w-full py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-150" onClick={() => setIsCategoryModalOpen(false)}>Cancel</button>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">

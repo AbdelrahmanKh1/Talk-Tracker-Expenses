@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Edit, Trash2, Utensils, Car, ShoppingBag, HeartPulse, Gamepad2, Receipt, Wallet as WalletIcon, Box } from 'lucide-react';
+import { Edit, Trash2, Utensils, Car, ShoppingBag, HeartPulse, Gamepad2, Receipt, Wallet as WalletIcon, Box, TrendingUp, BookOpen, Plane, Scissors, Home, Briefcase } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { Expense } from '@/types';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
@@ -14,15 +14,19 @@ interface SwipeableExpenseItemProps {
 }
 
 const CATEGORY_ICONS: Record<string, JSX.Element> = {
-  Food: <Utensils size={24} strokeWidth={2.2} className="text-teal-600" />,
-  Transport: <Car size={24} strokeWidth={2.2} className="text-teal-600" />,
-  Shopping: <ShoppingBag size={24} strokeWidth={2.2} className="text-teal-600" />,
-  Health: <HeartPulse size={24} strokeWidth={2.2} className="text-teal-600" />,
-  Entertainment: <Gamepad2 size={24} strokeWidth={2.2} className="text-teal-600" />,
-  Bills: <Receipt size={24} strokeWidth={2.2} className="text-teal-600" />,
-  Education: <WalletIcon size={24} strokeWidth={2.2} className="text-teal-600" />,
-  Travel: <WalletIcon size={24} strokeWidth={2.2} className="text-teal-600" />,
-  Miscellaneous: <Box size={24} strokeWidth={2.2} className="text-teal-600" />,
+  Food: <Utensils size={24} strokeWidth={2.2} className="text-orange-500" />,
+  Transportation: <Car size={24} strokeWidth={2.2} className="text-blue-500" />,
+  Shopping: <ShoppingBag size={24} strokeWidth={2.2} className="text-purple-500" />,
+  Utilities: <Receipt size={24} strokeWidth={2.2} className="text-yellow-500" />,
+  Entertainment: <Gamepad2 size={24} strokeWidth={2.2} className="text-green-500" />,
+  Health: <HeartPulse size={24} strokeWidth={2.2} className="text-red-500" />,
+  Fitness: <TrendingUp size={24} strokeWidth={2.2} className="text-pink-500" />,
+  Education: <BookOpen size={24} strokeWidth={2.2} className="text-indigo-500" />,
+  Travel: <Plane size={24} strokeWidth={2.2} className="text-cyan-500" />,
+  'Personal care': <Scissors size={24} strokeWidth={2.2} className="text-rose-500" />,
+  Home: <Home size={24} strokeWidth={2.2} className="text-lime-500" />,
+  Work: <Briefcase size={24} strokeWidth={2.2} className="text-blue-900 dark:text-amber-400" />,
+  Others: <Box size={24} strokeWidth={2.2} className="text-gray-500" />,
 };
 
 const SwipeableExpenseItem: React.FC<SwipeableExpenseItemProps> = ({
@@ -76,39 +80,39 @@ const SwipeableExpenseItem: React.FC<SwipeableExpenseItemProps> = ({
           tabIndex={0}
           aria-label="Show actions"
         >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900/30 rounded-full flex items-center justify-center">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900/30 rounded-full flex items-center justify-center">
               <span className="text-xl">
-                {CATEGORY_ICONS[expense.category] || CATEGORY_ICONS['Miscellaneous']}
+                {CATEGORY_ICONS[expense.category] || CATEGORY_ICONS['Others']}
               </span>
-              </div>
-              <div>
-                <div className="flex items-center gap-2 font-medium text-gray-900 dark:text-white">
-                  {expense.description}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">{expense.category}</div>
-              </div>
             </div>
-            <div className="text-right">
-              <div className="font-semibold text-gray-900 dark:text-white">{settings?.base_currency || 'USD'} {formatCompactNumber(expense.amount)}</div>
-              {expense.original_amount && expense.original_currency && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 underline cursor-help">
-                      {formatCompactNumber(expense.original_amount)} {expense.original_currency}
-                      {expense.rate && (
-                        <> @ {expense.rate.toFixed(4)}</>
-                      )}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {expense.rate
-                      ? `Conversion rate: 1 ${expense.original_currency} = ${expense.rate.toFixed(4)} ${expense.base_currency}`
-                      : 'Original value'}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              <div className="text-xs text-gray-500 dark:text-gray-400">{expense.date || expense.created_at}</div>
+            <div>
+              <div className="flex items-center gap-2 font-medium text-gray-900 dark:text-white">
+                {expense.description}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">{expense.category}</div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="font-semibold text-gray-900 dark:text-white">{settings?.base_currency || 'USD'} {formatCompactNumber(expense.amount)}</div>
+            {expense.original_amount && expense.original_currency && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 underline cursor-help">
+                    {formatCompactNumber(expense.original_amount)} {expense.original_currency}
+                    {expense.rate && (
+                      <> @ {expense.rate.toFixed(4)}</>
+                    )}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {expense.rate
+                    ? `Conversion rate: 1 ${expense.original_currency} = ${expense.rate.toFixed(4)} ${expense.base_currency}`
+                    : 'Original value'}
+                </TooltipContent>
+              </Tooltip>
+            )}
+            <div className="text-xs text-gray-500 dark:text-gray-400">{expense.date || expense.created_at}</div>
           </div>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Plus, Trash2, Utensils, Car, ShoppingBag, HeartPulse, Gamepad2, Receipt, Wallet, Box, Edit3, TrendingUp } from 'lucide-react';
+import { X, Plus, Trash2, Utensils, Car, ShoppingBag, HeartPulse, Gamepad2, Receipt, Wallet, Box, Edit3, TrendingUp, BookOpen, Plane, Scissors, Home, Briefcase } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { getExchangeRate } from '@/lib/exchangeRate';
 import { toast } from 'sonner';
@@ -34,12 +34,17 @@ interface EditExpenseModalProps {
 
 const CATEGORY_ICONS: Record<string, JSX.Element> = {
   Food: <Utensils size={24} strokeWidth={2.2} className="text-orange-500" />,
-  Transport: <Car size={24} strokeWidth={2.2} className="text-blue-500" />,
+  Transportation: <Car size={24} strokeWidth={2.2} className="text-blue-500" />,
   Shopping: <ShoppingBag size={24} strokeWidth={2.2} className="text-purple-500" />,
-  Health: <HeartPulse size={24} strokeWidth={2.2} className="text-red-500" />,
+  Utilities: <Receipt size={24} strokeWidth={2.2} className="text-yellow-500" />,
   Entertainment: <Gamepad2 size={24} strokeWidth={2.2} className="text-green-500" />,
-  Bills: <Receipt size={24} strokeWidth={2.2} className="text-yellow-500" />,
-  Income: <Wallet size={24} strokeWidth={2.2} className="text-emerald-500" />,
+  Health: <HeartPulse size={24} strokeWidth={2.2} className="text-red-500" />,
+  Fitness: <TrendingUp size={24} strokeWidth={2.2} className="text-pink-500" />,
+  Education: <BookOpen size={24} strokeWidth={2.2} className="text-indigo-500" />,
+  Travel: <Plane size={24} strokeWidth={2.2} className="text-cyan-500" />,
+  'Personal care': <Scissors size={24} strokeWidth={2.2} className="text-rose-500" />,
+  Home: <Home size={24} strokeWidth={2.2} className="text-lime-500" />,
+  Work: <Briefcase size={24} strokeWidth={2.2} className="text-blue-900 dark:text-amber-400" />,
   Others: <Box size={24} strokeWidth={2.2} className="text-gray-500" />,
 };
 
@@ -55,7 +60,19 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const categories = [
-  'Food', 'Transport', 'Shopping', 'Health', 'Entertainment', 'Bills', 'Income', 'Others'
+  'Food',
+  'Transportation',
+  'Shopping',
+  'Utilities',
+  'Entertainment',
+  'Health',
+  'Fitness',
+  'Education',
+  'Travel',
+  'Personal care',
+  'Home',
+  'Work',
+  'Others',
 ];
 
 const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
@@ -236,9 +253,13 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
                   id={`description-${item.id}`}
                   value={item.description}
                   onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                  placeholder="Enter description"
-                  className="h-12 text-base border-gray-200 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl transition-all duration-200 dark:bg-gray-700 dark:text-white"
+                  placeholder="e.g. Coffee 15, Uber ride 30, category: Food, date: 2024-07-01"
+                  className="h-12 text-base border-gray-200 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500/20 rounded-xl transition-all duration-200 dark:bg-gray-700 dark:text-white"
+                  required
                 />
+                <small className="text-gray-500 dark:text-gray-400">
+                  Example: Coffee 15, category: Food, date: 2024-07-01. Categories: Food, Transportation, Shopping, Utilities, Entertainment, Health, Fitness, Education, Travel, Personal care, Home, Work, Others.
+                </small>
               </div>
 
               <div className="space-y-2">
