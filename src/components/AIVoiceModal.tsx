@@ -50,6 +50,9 @@ export const AIVoiceModal: React.FC<AIVoiceModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [savedExpenses, setSavedExpenses] = useState<SavedExpense[]>([]);
   const [showSavedExpenses, setShowSavedExpenses] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [reviewExpenses, setReviewExpenses] = useState([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -57,6 +60,9 @@ export const AIVoiceModal: React.FC<AIVoiceModalProps> = ({
   const { processVoiceInput, isProcessing, processingProgress } = useAIAgent();
   const { toast } = useToast();
   const { currency } = useCurrency();
+
+  let recordingTimeout: NodeJS.Timeout | null = null;
+  let recordingInterval: NodeJS.Timeout | null = null;
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -173,6 +179,9 @@ export const AIVoiceModal: React.FC<AIVoiceModalProps> = ({
       };
 
       mediaRecorder.onstop = () => {
+        if (recordingTimeout) clearTimeout(recordingTimeout);
+        if (recordingInterval) clearInterval(recordingInterval);
+        setRecordingDuration(0);
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         setAudioBlob(audioBlob);
         processAudio(audioBlob);
@@ -180,7 +189,24 @@ export const AIVoiceModal: React.FC<AIVoiceModalProps> = ({
 
       mediaRecorder.start();
       setIsRecording(true);
-      
+      setRecordingDuration(0);
+
+      // Auto-stop after 20s
+      recordingTimeout = setTimeout(() => {
+        stopRecording();
+      }, 20000);
+
+      // Optional: update recording duration every second
+      recordingInterval = setInterval(() => {
+        setRecordingDuration(prev => {
+          if (prev >= 20) {
+            clearInterval(recordingInterval!);
+            return 20;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+
       toast({
         title: "🎤 Recording Started",
         description: "Speak clearly about your expenses",
@@ -197,6 +223,9 @@ export const AIVoiceModal: React.FC<AIVoiceModalProps> = ({
   };
 
   const stopRecording = () => {
+    if (recordingTimeout) clearTimeout(recordingTimeout);
+    if (recordingInterval) clearInterval(recordingInterval);
+    setRecordingDuration(0);
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
@@ -357,6 +386,34 @@ export const AIVoiceModal: React.FC<AIVoiceModalProps> = ({
       default:
         return 'text-gray-500';
     }
+  };
+
+  const updateExpense = (idx, field, value) => {
+    setReviewExpenses(expenses =>
+      expenses.map((exp, i) => i === idx ? { ...exp, [field]: value } : exp)
+    );
+  };
+
+  const removeExpense = (idx) => {
+    setReviewExpenses(expenses => expenses.filter((_, i) => i !== idx));
+  };
+
+  const saveReviewedExpenses = async () => {
+    await fetch('https://rslwcgjgzezptoblckua.functions.supabase.co/save-reviewed-expenses', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        expenses: reviewExpenses,
+        selectedMonth,
+        sessionId: result.session_id,
+        source: 'voice'
+      }),
+    });
+    setShowReviewModal(false);
+    // Show success toast, refresh UI, etc.
   };
 
   return (
@@ -597,6 +654,56 @@ export const AIVoiceModal: React.FC<AIVoiceModalProps> = ({
                       No saved expenses found.
                     </p>
                   )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          {/* Recording Duration */}
+          {isRecording && (
+            <div style={{ textAlign: 'center', margin: '8px 0', fontWeight: 'bold', color: '#2563eb' }}>
+              Recording: {recordingDuration}s / 20s
+            </div>
+          )}
+
+          {/* Review & Edit Modal */}
+          {showReviewModal && (
+            <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
+              <DialogContent>
+                <h2 className="text-lg font-bold mb-4">Review & Edit Expenses</h2>
+                {reviewExpenses.map((exp, idx) => (
+                  <div key={idx} className="mb-4 flex gap-2 items-center">
+                    <Input
+                      value={exp.description}
+                      onChange={e => updateExpense(idx, 'description', e.target.value)}
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      value={exp.amount}
+                      onChange={e => updateExpense(idx, 'amount', parseFloat(e.target.value))}
+                      className="w-24"
+                    />
+                    <Select
+                      value={exp.category}
+                      onValueChange={val => updateExpense(idx, 'category', val)}
+                    >
+                      {/* Render category options with icons */}
+                    </Select>
+                    <Input
+                      type="date"
+                      value={exp.date || defaultDate}
+                      onChange={e => updateExpense(idx, 'date', e.target.value)}
+                      className="w-36"
+                    />
+                    <Button onClick={() => removeExpense(idx)} variant="ghost" size="icon">
+                      <Trash2 />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex justify-end gap-2">
+                  <Button onClick={() => setShowReviewModal(false)} variant="outline">Cancel</Button>
+                  <Button onClick={saveReviewedExpenses} variant="primary">Save</Button>
                 </div>
               </DialogContent>
             </Dialog>
