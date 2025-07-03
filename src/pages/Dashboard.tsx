@@ -13,7 +13,7 @@ import DashboardModals from '@/components/DashboardModals';
 import { AIVoiceModal } from '@/components/AIVoiceModal';
 import { BudgetSummary } from '@/components/BudgetSummary';
 import { useUserSettings } from '@/hooks/useUserSettings';
-import { Loader2, TrendingUp, TrendingDown, DollarSign, Search } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, DollarSign, Search, Lightbulb, X } from 'lucide-react';
 import { ExpenseAnalytics } from '@/components/ExpenseAnalytics';
 import { SmartInsights } from '@/components/SmartInsights';
 import { QuickActions } from '@/components/QuickActions';
@@ -75,6 +75,7 @@ const Dashboard = () => {
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isConnectWalletModalOpen, setIsConnectWalletModalOpen] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showSmartInsights, setShowSmartInsights] = useState(false);
   
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
@@ -174,22 +175,6 @@ const Dashboard = () => {
     toast.success('Expense data exported successfully!');
   };
 
-  const handleShareReport = (): void => {
-    if (navigator.share) {
-      navigator.share({
-        title: `Financial Report - ${selectedMonth}`,
-        text: `I spent ${settings?.base_currency || 'USD'} ${formatCompactNumber(monthlyTotal)} in ${selectedMonth}. Track your expenses with our app!`,
-        url: window.location.href
-      });
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(
-        `Financial Report - ${selectedMonth}\nTotal Spent: ${settings?.base_currency || 'USD'} ${formatCompactNumber(monthlyTotal)}\nExpenses: ${monthExpenses.length}`
-      );
-      toast.success('Report copied to clipboard!');
-    }
-  };
-
   const handleConnectWallet = () => {
     // For now, this will just open the modal.
     // Later, it will initiate the wallet connection flow.
@@ -265,7 +250,7 @@ const Dashboard = () => {
     onSetBudget: openSetBudgetModal,
     onViewAnalytics: () => setShowAnalytics(!showAnalytics),
     onConnectWallet: handleConnectWallet,
-    onShareReport: handleShareReport,
+    onShareReport: handleExportData, // Changed to export data for now
     onExportData: handleExportData,
     onOpenSettings: handleOpenSettings
   };
@@ -416,6 +401,64 @@ const Dashboard = () => {
           />
         )}
       </div>
+
+      {/* Analytics and Smart Insights Buttons */}
+      <div className="flex gap-2 justify-end mb-4">
+        <Button variant="secondary" onClick={() => setShowAnalytics(true)}>
+          <TrendingUp className="mr-2" /> View Analytics
+        </Button>
+        <Button variant="secondary" onClick={() => setShowSmartInsights(true)}>
+          <Lightbulb className="mr-2" /> Smart Insights
+        </Button>
+      </div>
+      {/* Analytics Modal */}
+      {showAnalytics && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-4 sm:p-6 max-w-lg sm:max-w-2xl w-11/12 sm:w-full relative">
+            <button
+              onClick={() => setShowAnalytics(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white"
+              aria-label="Close Analytics Modal"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="overflow-y-auto max-h-[80vh]">
+              <ExpenseAnalytics
+                expenses={monthExpenses}
+                selectedMonth={selectedMonth}
+              />
+            </div>
+            <Button variant="ghost" onClick={() => setShowAnalytics(false)} className="mt-4 w-full">
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+      {/* Smart Insights Modal */}
+      {showSmartInsights && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-4 sm:p-6 max-w-lg sm:max-w-2xl w-11/12 sm:w-full relative">
+            <button
+              onClick={() => setShowSmartInsights(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white"
+              aria-label="Close Smart Insights Modal"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="overflow-y-auto max-h-[80vh]">
+              <SmartInsights
+                expenses={monthExpenses}
+                budget={budgetStatus?.budget || 0}
+                spent={monthlyTotal}
+                selectedMonth={selectedMonth}
+              />
+            </div>
+            <Button variant="ghost" onClick={() => setShowSmartInsights(false)} className="mt-4 w-full">
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
 
       <VoiceInputFab onVoiceClick={() => setIsVoiceModalOpen(true)} />
 

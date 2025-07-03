@@ -142,11 +142,9 @@ class AIAgent {
   private async extractExpensesWithRegex(text: string): Promise<ExpenseItem[]> {
     const expenses: ExpenseItem[] = [];
     const lowerText = text.toLowerCase();
-
-    // Get user's learned patterns
     const userPatterns = await this.getUserCategoryPatterns();
-    
-    // Enhanced patterns with currency detection
+
+    // Expanded patterns for more natural language
     const patterns = [
       // "coffee 5 dollars" or "coffee 5 EGP"
       /(\w+(?:\s+\w+)*)\s+(\d+(?:\.\d{1,2})?)\s*(?:dollars?|egp|usd|eur|pounds?|€|$|£)?/gi,
@@ -155,15 +153,35 @@ class AIAgent {
       // "spent 20 on groceries"
       /(?:spent|paid|cost)\s+(\d+(?:\.\d{1,2})?)\s+(?:on|for)\s+(\w+(?:\s+\w+)*)/gi,
       // "bought coffee for 5"
-      /(?:bought|purchased|got)\s+(\w+(?:\s+\w+)*)\s+(?:for|at)\s+(\d+(?:\.\d{1,2})?)/gi
+      /(?:bought|purchased|got)\s+(\w+(?:\s+\w+)*)\s+(?:for|at)\s+(\d+(?:\.\d{1,2})?)/gi,
+      // "15 coffee" or "20 Uber"
+      /(\d+(?:\.\d{1,2})?)\s+(\w+(?:\s+\w+)*)/gi,
+      // "Uber 20"
+      /(\w+(?:\s+\w+)*)\s+(\d+(?:\.\d{1,2})?)/gi,
+      // "Lunch 12 Food" or "12 for lunch Food"
+      /(\d+(?:\.\d{1,2})?)\s+(?:for\s+)?(\w+(?:\s+\w+)*)(?:\s+(food|transportation|shopping|utilities|entertainment|health|fitness|education|travel|personal care|home|work|others))?/gi,
+      /(\w+(?:\s+\w+)*)\s+(\d+(?:\.\d{1,2})?)(?:\s+(food|transportation|shopping|utilities|entertainment|health|fitness|education|travel|personal care|home|work|others))?/gi,
     ];
 
+    const categoryWords = [
+      'food','transportation','shopping','utilities','entertainment','health','fitness','education','travel','personal care','home','work','others'
+    ];
+    const currencyWords = [
+      'dollars','egp','usd','eur','pounds','€','$','£'
+    ];
+
+    let matched = false;
     for (const pattern of patterns) {
       let match;
       while ((match = pattern.exec(text)) !== null) {
-        let description, amount;
-        
-        if (pattern.source.includes('(?:spent|paid|cost)')) {
+        let amount, description, category;
+        // Try to find amount and description based on match groups
+        if (match.length === 4 && match[3]) {
+          // Pattern with explicit category
+          amount = parseFloat(match[1]) || parseFloat(match[2]);
+          description = match[2] || match[1];
+          category = match[3].charAt(0).toUpperCase() + match[3].slice(1);
+        } else if (pattern.source.includes('(?:spent|paid|cost)')) {
           amount = parseFloat(match[1]);
           description = match[2].trim();
         } else if (pattern.source.includes('(?:bought|purchased|got)')) {
@@ -172,15 +190,45 @@ class AIAgent {
         } else if (pattern.source.startsWith('(\\w+')) {
           description = match[1].trim();
           amount = parseFloat(match[2]);
-        } else {
+        } else if (!isNaN(parseFloat(match[1])) && match[2]) {
           amount = parseFloat(match[1]);
           description = match[2].trim();
+        } else {
+          amount = parseFloat(match[2]);
+          description = match[1].trim();
         }
+        // Clean up description
+        description = description
+          .replace(new RegExp(currencyWords.join('|'), 'gi'), '')
+          .replace(new RegExp(categoryWords.join('|'), 'gi'), '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        // Predict category if not explicit
+        if (!category) {
+          category = await this.predictCategory(description, userPatterns);
+        }
+        const confidence = this.calculateConfidence(description, amount, category);
+        if (amount > 0 && description.length > 0) {
+          expenses.push({
+            description: this.capitalizeFirst(description),
+            amount,
+            category,
+            confidence
+          });
+          matched = true;
+        }
+      }
+    }
 
-        if (amount > 0 && description && description.length > 1) {
+    // Fallback: if nothing matched, try to extract the first number and use the rest as description
+    if (!matched) {
+      const fallbackMatch = text.match(/(\d+(?:\.\d{1,2})?)/);
+      if (fallbackMatch) {
+        const amount = parseFloat(fallbackMatch[1]);
+        const description = text.replace(fallbackMatch[1], '').replace(new RegExp(currencyWords.join('|'), 'gi'), '').replace(/\s+/g, ' ').trim();
+        if (amount > 0 && description.length > 0) {
           const category = await this.predictCategory(description, userPatterns);
           const confidence = this.calculateConfidence(description, amount, category);
-          
           expenses.push({
             description: this.capitalizeFirst(description),
             amount,
@@ -206,22 +254,41 @@ class AIAgent {
       }
     }
 
-    // Enhanced category mapping with simplified categories
+    // Updated category mapping with simplified categories
+    const NEW_CATEGORIES = [
+      'Food',
+      'Transportation',
+      'Shopping',
+      'Utilities',
+      'Entertainment',
+      'Health',
+      'Fitness',
+      'Education',
+      'Travel',
+      'Personal care',
+      'Home',
+      'Work',
+      'Others'
+    ];
+
     const categoryMap = {
       'Food': ['coffee', 'lunch', 'dinner', 'breakfast', 'food', 'restaurant', 'meal', 'snack', 'drink', 'pizza', 'burger', 'sandwich', 'salad', 'sushi', 'kebab', 'shawarma', 'falafel', 'ice cream', 'dessert', 'cake', 'bread', 'milk', 'eggs', 'meat', 'chicken', 'fish', 'vegetables', 'fruits'],
-      'Transport': ['uber', 'taxi', 'bus', 'metro', 'subway', 'train', 'gas', 'fuel', 'parking', 'transport', 'car', 'bike', 'scooter', 'lyft', 'ride', 'fare', 'ticket', 'pass'],
-      'Groceries': ['groceries', 'supermarket', 'market', 'food store', 'provisions', 'household items', 'cleaning supplies', 'detergent', 'toiletries'],
-      'Health': ['medicine', 'doctor', 'pharmacy', 'health', 'medical', 'hospital', 'clinic', 'dental', 'eye', 'glasses', 'contact', 'vitamins', 'supplements', 'gym', 'fitness', 'yoga', 'massage', 'therapy'],
+      'Transportation': ['uber', 'taxi', 'bus', 'metro', 'subway', 'train', 'gas', 'fuel', 'parking', 'transport', 'car', 'bike', 'scooter', 'lyft', 'ride', 'fare', 'ticket', 'pass'],
       'Shopping': ['clothes', 'shopping', 'store', 'buy', 'purchase', 'shirt', 'shoes', 'dress', 'pants', 'jacket', 'bag', 'accessories', 'jewelry', 'watch', 'perfume', 'cosmetics', 'makeup', 'skincare'],
-      'Entertainment': ['movie', 'cinema', 'game', 'entertainment', 'show', 'concert', 'ticket', 'theater', 'play', 'music', 'festival', 'party', 'club', 'bar', 'pub', 'karaoke', 'bowling', 'arcade', 'amusement'],
       'Utilities': ['electricity', 'water', 'internet', 'phone', 'bill', 'utility', 'cable', 'tv', 'streaming', 'netflix', 'spotify', 'subscription'],
+      'Entertainment': ['movie', 'cinema', 'game', 'entertainment', 'show', 'concert', 'ticket', 'theater', 'play', 'music', 'festival', 'party', 'club', 'bar', 'pub', 'karaoke', 'bowling', 'arcade', 'amusement'],
+      'Health': ['medicine', 'doctor', 'pharmacy', 'health', 'medical', 'hospital', 'clinic', 'dental', 'eye', 'glasses', 'contact', 'vitamins', 'supplements'],
+      'Fitness': ['gym', 'fitness', 'yoga', 'workout', 'exercise', 'trainer', 'membership', 'class'],
+      'Education': ['school', 'university', 'college', 'course', 'education', 'tuition', 'books', 'supplies', 'lesson', 'training'],
       'Travel': ['hotel', 'flight', 'travel', 'vacation', 'trip', 'booking', 'airbnb', 'hostel', 'resort', 'beach', 'mountain', 'tour', 'guide', 'souvenir', 'passport', 'visa'],
-      'Bills': ['rent', 'mortgage', 'insurance', 'loan', 'credit card', 'debt', 'payment'],
-      'Other': [] // Default category for anything not matching
+      'Personal care': ['salon', 'spa', 'haircut', 'barber', 'personal care', 'manicure', 'pedicure', 'massage', 'skincare', 'cosmetics'],
+      'Home': ['rent', 'mortgage', 'home', 'furniture', 'appliance', 'repair', 'maintenance', 'decor', 'cleaning'],
+      'Work': ['office', 'work', 'business', 'supplies', 'equipment', 'software', 'tools'],
+      'Others': []
     };
 
     // Find the best matching category
-    let bestCategory = 'Other';
+    let bestCategory = 'Others';
     let bestScore = 0;
 
     for (const [category, keywords] of Object.entries(categoryMap)) {
@@ -251,7 +318,7 @@ class AIAgent {
     if (amount > 0.1) confidence += 0.1;
 
     // Category confidence (non-other gets higher confidence)
-    if (category !== 'Other') confidence += 0.1;
+    if (category !== 'Others') confidence += 0.1;
 
     // Currency mention factor
     if (/\b(dollars?|egp|usd|eur|pounds?|€|$|£)\b/i.test(description)) confidence += 0.1;
@@ -436,6 +503,11 @@ async function transcribeWithGoogle(audioBase64: string): Promise<string> {
           enableAutomaticPunctuation: true,
           model: 'latest_long',
           useEnhanced: true,
+          speechContexts: [
+            { phrases: [
+              'coffee', 'groceries', 'rent', 'Uber', 'metro', 'ticket', 'restaurant', 'shopping', 'food', 'transport', 'bills', 'utilities', 'entertainment', 'health', 'travel', 'lunch', 'breakfast', 'dinner', 'bus', 'train', 'taxi', 'subscription', 'pharmacy', 'doctor', 'movie', 'cinema', 'snacks', 'market', 'supermarket', 'mall', 'clothes', 'shoes', 'electronics', 'internet', 'phone', 'electricity', 'water', 'gas', 'insurance', 'gym', 'school', 'university', 'books', 'supplies', 'gift', 'present', 'party', 'flight', 'hotel', 'airbnb', 'car', 'fuel', 'parking', 'maintenance', 'repair', 'fee', 'charge', 'expense', 'payment', 'deposit', 'withdrawal', 'transfer', 'cash', 'card', 'account', 'balance', 'usd', 'dollar', 'egp', 'pound', 'euro', 'sar', 'aed', 'qar', 'kwd', 'bhd', 'jod', 'try', 'ils', 'mad', 'dzd', 'tnd', 'lyd', 'sdg', 'syp', 'iqd', 'lbp', 'yem', 'omr', 'mro', 'mr', 'dinar', 'shekel', 'dirham', 'riyals', 'lira', 'franc', 'cent', 'kuna', 'zloty', 'forint', 'koruna', 'lev', 'leu', 'rub', 'uah', 'gel', 'mdl', 'ron', 'isk', 'sek', 'nok', 'dkk', 'chf', 'czk', 'huf', 'pln', 'bgn', 'hrk', 'rsd', 'mkd', 'bam', 'all', 'try', 'ron', 'eur', 'gbp', 'jpy', 'cny', 'inr', 'aud', 'cad', 'sgd', 'hkd', 'nzd', 'zar', 'brl', 'mxn', 'clp', 'cop', 'pen', 'ars', 'vef', 'crc', 'gtq', 'hnl', 'nio', 'pab', 'pyg', 'dop', 'uyu', 'bob', 'bzd', 'jmd', 'ttd', 'xof', 'xaf', 'xpf', 'cdf', 'gnf', 'mga', 'rwf', 'scr', 'sos', 'std', 'tzs', 'ugx', 'zmw', 'aoa', 'bwp', 'ghs', 'kes', 'lsl', 'mwk', 'mzn', 'nad', 'ngn', 'rwf', 'szl', 'zar', 'zmk', 'zwd', 'aed', 'afn', 'amd', 'azn', 'bhd', 'bnd', 'cny', 'egp', 'hkd', 'idr', 'ils', 'inr', 'iqd', 'jod', 'jpy', 'krw', 'kwd', 'kzt', 'lbp', 'lkr', 'mmk', 'mnt', 'myr', 'nok', 'npr', 'omr', 'pkr', 'qar', 'rub', 'sar', 'sgd', 'syp', 'thb', 'try', 'twd', 'uzs', 'vnd', 'yer'
+            ] }
+          ]
         },
         audio: {
           content: audioBase64,
@@ -510,6 +582,38 @@ async function createGoogleJWT(credentials: any): Promise<string> {
   }
 }
 
+// Add this function near the other transcription helpers
+async function transcribeWithDeepgram(audioBase64: string): Promise<string> {
+  try {
+    // Convert base64 to binary
+    const binary = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
+    const apiKey = "83c213350ce9a28470f1bbb690394ad2d399ce83";
+    const response = await fetch("https://api.deepgram.com/v1/listen", {
+      method: "POST",
+      headers: {
+        "Authorization": `Token ${apiKey}`,
+        "Content-Type": "audio/webm"
+      },
+      body: binary
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Deepgram API error:", errorText);
+      throw new Error("Deepgram API failed");
+    }
+
+    const data = await response.json();
+    // Deepgram returns transcript at data.results.channels[0].alternatives[0].transcript
+    const transcript = data.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
+    console.log("Deepgram transcript:", transcript);
+    return transcript;
+  } catch (error) {
+    console.error("Deepgram transcription error:", error);
+    throw error;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -554,40 +658,42 @@ serve(async (req) => {
       throw new Error('Invalid audio data format');
     }
 
-    // Transcribe audio using Google Speech-to-Text with better error handling
-    console.log('Transcribing audio with Google Speech-to-Text...');
+    // Transcribe audio using Deepgram
+    console.log('Trying Deepgram for transcription...');
     let transcription: string;
     
     try {
-      transcription = await transcribeWithGoogle(audioBase64);
-    } catch (transcriptionError) {
-      console.error('Google transcription failed, trying fallback:', transcriptionError);
-      
+      transcription = await transcribeWithDeepgram(audioBase64);
+      console.log('Deepgram transcription succeeded.');
+    } catch (deepgramError) {
+      console.error('Deepgram transcription failed:', deepgramError);
       try {
-        // Try fallback transcription service
-        transcription = await transcribeWithFallback(audioBase64);
-        console.log('Fallback transcription successful:', transcription);
-      } catch (fallbackError) {
-        console.error('Fallback transcription also failed:', fallbackError);
-        
-        // Return a helpful error response instead of throwing
-        return new Response(
-          JSON.stringify({ 
-            transcription: '',
-            expenses: [],
-            suggestions: [
-              'Speech recognition is not configured. Please set up Google Speech-to-Text credentials.',
-              'You can add expenses manually using the "Add Expense" button.',
-              'Contact your administrator to configure speech recognition services.',
-              'Make sure your microphone is working and you have granted permission.'
-            ],
-            confidence: 0,
-            session_id: aiAgent.getSessionId(),
-            error: 'speech_recognition_not_configured',
-            error_details: fallbackError.message
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.log('Trying Google STT for transcription...');
+        transcription = await transcribeWithGoogle(audioBase64);
+        console.log('Google STT transcription succeeded.');
+      } catch (googleError) {
+        console.error('Google STT transcription failed:', googleError);
+        try {
+          console.log('Trying regex fallback for transcription...');
+          transcription = await transcribeWithFallback(audioBase64);
+          console.log('Regex fallback transcription succeeded.');
+        } catch (fallbackError) {
+          console.error('All transcription methods failed:', fallbackError);
+          return new Response(
+            JSON.stringify({ 
+              transcription: '',
+              expenses: [],
+              suggestions: [
+                'All speech recognition services failed. Please try again later or use manual entry.'
+              ],
+              confidence: 0,
+              session_id: aiAgent.getSessionId(),
+              error: 'all_transcription_failed',
+              error_details: fallbackError.message
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
     }
     
@@ -707,24 +813,32 @@ serve(async (req) => {
     for (const expense of expenses) {
       try {
         // Check for duplicates
-        const expenseKey = `${expense.description.toLowerCase()}-${expense.amount}`;
+        const expenseKey = `${expense.description?.toLowerCase() || ''}-${expense.amount}`;
         if (existingExpenseMap.has(expenseKey)) {
           console.log('Skipping duplicate expense:', expense.description, expense.amount);
           continue;
         }
-        
+        // Ensure category is valid
+        let category = expense.category;
+        if (!NEW_CATEGORIES.includes(category)) {
+          category = 'Others';
+        }
+        // Use transcription as description if missing
+        let description = expense.description;
+        if (!description || description.trim().length === 0) {
+          description = transcription;
+        }
         const { data, error } = await supabase.from('expenses').insert([{
           user_id: user.id,
           amount: expense.amount,
-          description: expense.description,
-          category: expense.category,
+          description,
+          category,
           date: expenseDate,
           created_at: new Date().toISOString(),
         }]).select();
-
         if (error) {
           console.error('Error inserting expense:', error);
-          insertionErrors.push(`Failed to save ${expense.description}: ${error.message}`);
+          insertionErrors.push(`Failed to save ${description}: ${error.message}`);
           continue;
         }
         if (data && data.length > 0) {
@@ -836,7 +950,7 @@ serve(async (req) => {
           processing_time_ms: Date.now() - startTime,
           ai_version: '2.0',
           learning_enabled: true,
-          speech_service: 'google',
+          speech_service: 'deepgram',
           insertion_errors: insertionErrors.length,
           input_type: 'voice'
         },

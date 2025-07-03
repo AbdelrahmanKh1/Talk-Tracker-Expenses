@@ -88,8 +88,8 @@ export const EnhancedStatsCards = ({
       title: 'Budget Status',
       value: `${stats.budgetPercentage.toFixed(1)}%`,
       subtitle: stats.isOverBudget 
-        ? `Over by ${settings?.base_currency || 'USD'} ${(spent - budget).toLocaleString()}`
-        : `${settings?.base_currency || 'USD'} ${stats.remainingBudget.toLocaleString()} remaining`,
+        ? `Over by ${settings?.base_currency || 'USD'} ${formatCompactNumber(spent - budget)}`
+        : `${settings?.base_currency || 'USD'} ${formatCompactNumber(stats.remainingBudget)} remaining`,
       icon: stats.isOverBudget ? <AlertTriangle className="w-6 h-6" /> : 
             stats.isNearBudget ? <AlertTriangle className="w-6 h-6" /> : 
             <CheckCircle className="w-6 h-6" />,
