@@ -206,7 +206,7 @@ export const AIVoiceModal: React.FC<AIVoiceModalProps> = ({
           return prev + 1;
         });
       }, 1000);
-
+      
       toast({
         title: "🎤 Recording Started",
         description: "Speak clearly about your expenses",

@@ -13,6 +13,7 @@ import DashboardModals from '@/components/DashboardModals';
 import { AIVoiceModal } from '@/components/AIVoiceModal';
 import { BudgetSummary } from '@/components/BudgetSummary';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import { useCurrency } from '@/hooks/useCurrency';
 import { Loader2, TrendingUp, TrendingDown, DollarSign, Search, Lightbulb, X } from 'lucide-react';
 import { ExpenseAnalytics } from '@/components/ExpenseAnalytics';
 import { SmartInsights } from '@/components/SmartInsights';
@@ -25,12 +26,17 @@ import ConnectWalletModal from '@/components/ConnectWalletModal';
 import { Button } from '@/components/ui/button';
 import { formatCompactNumber } from '@/lib/utils';
 // import { PWAInstallPrompt, FloatingInstallButton } from '@/components/PWAInstallPrompt';
+import { AnalyticsCarousel } from '@/components/AnalyticsCarousel';
 
 type ExpenseSourceFilter = 'wallet' | 'manual' | 'voice';
 
 const Dashboard = () => {
   const { session } = useAuth();
   const { settings } = useUserSettings();
+  const { currencies } = useCurrency();
+  const baseCurrency = settings?.base_currency || settings?.active_currency || 'EGP';
+  const baseCurrencyObj = currencies.find(c => c.code === baseCurrency);
+  const baseSymbol = baseCurrencyObj?.symbol || baseCurrency;
   const { 
     expenses, 
     isLoading, 
@@ -76,6 +82,7 @@ const Dashboard = () => {
   const [isConnectWalletModalOpen, setIsConnectWalletModalOpen] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSmartInsights, setShowSmartInsights] = useState(false);
+  const [showAnalyticsPage, setShowAnalyticsPage] = useState(false);
   
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
@@ -300,7 +307,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <DashboardHeader />
+      <DashboardHeader onOpenAnalytics={() => setShowAnalyticsPage(true)} />
 
       <div className="px-4 sm:px-6 py-6 space-y-6 max-w-7xl mx-auto w-full">
         {/* Enhanced Stats Cards */}
@@ -385,14 +392,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Smart Insights */}
-        <SmartInsights
-          expenses={monthExpenses || []}
-          budget={budgetStatus?.budget || 0}
-          spent={monthlyTotal}
-          selectedMonth={selectedMonth}
-        />
-
         {/* Analytics Section - Conditionally shown */}
         {showAnalytics && (
           <ExpenseAnalytics
@@ -423,7 +422,6 @@ const Dashboard = () => {
               <X className="w-6 h-6" />
             </button>
             <div className="overflow-y-auto max-h-[80vh]">
-              <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100 text-center">Spending Analytics</h2>
               <ExpenseAnalytics
                 expenses={monthExpenses}
                 selectedMonth={selectedMonth}
@@ -447,7 +445,6 @@ const Dashboard = () => {
               <X className="w-6 h-6" />
             </button>
             <div className="overflow-y-auto max-h-[80vh]">
-              <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100 text-center">Smart Insights</h2>
               <SmartInsights
                 expenses={monthExpenses}
                 budget={budgetStatus?.budget || 0}
@@ -458,6 +455,48 @@ const Dashboard = () => {
             <Button variant="ghost" onClick={() => setShowSmartInsights(false)} className="mt-4 w-full">
               Close
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Analytics Page/Modal */}
+      {showAnalyticsPage && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-br from-indigo-400 to-blue-500 dark:from-gray-900 dark:to-gray-900">
+          <div className="flex items-center justify-between px-6 py-4 bg-indigo-500/80 dark:bg-gray-900/80">
+            <h2 className="text-2xl font-bold text-white tracking-tight">
+              Analytics – {selectedMonth}
+            </h2>
+            <button
+              onClick={() => setShowAnalyticsPage(false)}
+              className="p-2 rounded-full hover:bg-indigo-600 dark:hover:bg-gray-800 transition-colors"
+              aria-label="Close Analytics Page"
+            >
+              <X className="w-7 h-7 text-white" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-2 sm:px-0 py-6 flex flex-col items-center">
+            <div className="w-full max-w-2xl space-y-8">
+              {/* Existing Analytics */}
+              <AnalyticsCarousel
+                expenses={monthExpenses}
+                budget={budgetStatus?.budget || 0}
+                spent={monthlyTotal}
+                selectedMonth={selectedMonth}
+                baseCurrency={baseCurrency}
+                baseSymbol={baseSymbol}
+              />
+              {/* New Creative Features Placeholder */}
+              <div className="bg-white/80 dark:bg-gray-800/80 rounded-3xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 mt-8">
+                <h3 className="text-xl font-bold text-indigo-700 dark:text-indigo-300 mb-2">✨ Coming Soon: More Insights</h3>
+                <ul className="list-disc pl-6 text-gray-700 dark:text-gray-300 space-y-2">
+                  <li>Personalized savings tips</li>
+                  <li>Spending milestones &amp; streaks</li>
+                  <li>Fun facts about your habits</li>
+                  <li>AI-powered recommendations</li>
+                  <li>And more!</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       )}

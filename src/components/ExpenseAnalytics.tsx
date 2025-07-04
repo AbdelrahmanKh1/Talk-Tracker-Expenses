@@ -15,6 +15,7 @@ import {
   Legend
 } from 'recharts';
 import { TrendingUp, PieChart as PieChartIcon, BarChart3, Calendar } from 'lucide-react';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import { useCurrency } from '@/hooks/useCurrency';
 
 interface Expense {
@@ -38,7 +39,14 @@ const COLORS = [
 ];
 
 export const ExpenseAnalytics = ({ expenses, selectedMonth }: ExpenseAnalyticsProps) => {
+  const { settings } = useUserSettings();
   const { currency } = useCurrency();
+  
+  // Use base currency from user settings, fallback to active currency
+  const displayCurrency = settings?.base_currency || currency.code;
+  const displaySymbol = settings?.base_currency ? 
+    useCurrency().currencies.find(c => c.code === settings.base_currency)?.symbol || currency.symbol :
+    currency.symbol;
 
   const analytics = useMemo(() => {
     if (!expenses.length) return null;
@@ -132,7 +140,7 @@ export const ExpenseAnalytics = ({ expenses, selectedMonth }: ExpenseAnalyticsPr
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 [&_.recharts-cartesian-axis-tick-text]:fill-gray-700 dark:[&_.recharts-cartesian-axis-tick-text]:fill-gray-300 [&_.recharts-legend-item-text]:fill-gray-700 dark:[&_.recharts-legend-item-text]:fill-gray-300 [&_.recharts-tooltip-wrapper]:bg-white dark:[&_.recharts-tooltip-wrapper]:bg-gray-800 [&_.recharts-tooltip-wrapper]:border-gray-200 dark:[&_.recharts-tooltip-wrapper]:border-gray-600 [&_.recharts-cartesian-grid-line]:stroke-gray-200 dark:[&_.recharts-cartesian-grid-line]:stroke-gray-600">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -156,7 +164,7 @@ export const ExpenseAnalytics = ({ expenses, selectedMonth }: ExpenseAnalyticsPr
             <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Total Spent</span>
           </div>
           <p className="text-2xl font-bold text-blue-900 dark:text-blue-200">
-            {currency.symbol} {analytics.totalSpent.toLocaleString()}
+            {displaySymbol} {analytics.totalSpent.toLocaleString()}
           </p>
         </div>
 
@@ -168,7 +176,7 @@ export const ExpenseAnalytics = ({ expenses, selectedMonth }: ExpenseAnalyticsPr
             <span className="text-sm font-medium text-green-700 dark:text-green-300">Daily Avg</span>
           </div>
           <p className="text-2xl font-bold text-green-900 dark:text-green-200">
-            {currency.symbol} {analytics.averagePerDay.toFixed(0)}
+            {displaySymbol} {analytics.averagePerDay.toFixed(0)}
           </p>
         </div>
 
@@ -180,7 +188,7 @@ export const ExpenseAnalytics = ({ expenses, selectedMonth }: ExpenseAnalyticsPr
             <span className="text-sm font-medium text-orange-700 dark:text-orange-300">Highest Day</span>
           </div>
           <p className="text-2xl font-bold text-orange-900 dark:text-orange-200">
-            {currency.symbol} {analytics.highestDay.toLocaleString()}
+            {displaySymbol} {analytics.highestDay.toLocaleString()}
           </p>
         </div>
 
@@ -201,7 +209,7 @@ export const ExpenseAnalytics = ({ expenses, selectedMonth }: ExpenseAnalyticsPr
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Category Breakdown */}
         <div className="space-y-4">
-          <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h4 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <PieChartIcon className="w-5 h-5 text-indigo-500" />
             Category Breakdown
           </h4>
@@ -222,7 +230,7 @@ export const ExpenseAnalytics = ({ expenses, selectedMonth }: ExpenseAnalyticsPr
                   ))}
                 </Pie>
                 <Tooltip 
-                  formatter={(value: number) => [`${currency.symbol} ${value.toLocaleString()}`, 'Amount']}
+                  formatter={(value: number) => [`${displaySymbol} ${value.toLocaleString()}`, 'Amount']}
                   labelFormatter={(label) => `Category: ${label}`}
                 />
                 <Legend />
@@ -233,14 +241,14 @@ export const ExpenseAnalytics = ({ expenses, selectedMonth }: ExpenseAnalyticsPr
 
         {/* Daily Spending Trend */}
         <div className="space-y-4">
-          <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h4 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-green-500" />
             Daily Spending Trend
           </h4>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={analytics.dailyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="day" 
                   tick={{ fontSize: 12 }}
@@ -248,10 +256,10 @@ export const ExpenseAnalytics = ({ expenses, selectedMonth }: ExpenseAnalyticsPr
                 />
                 <YAxis 
                   tick={{ fontSize: 12 }}
-                  tickFormatter={(value) => `${currency.symbol}${value}`}
+                  tickFormatter={(value) => `${displaySymbol}${value}`}
                 />
                 <Tooltip 
-                  formatter={(value: number) => [`${currency.symbol} ${value.toLocaleString()}`, 'Amount']}
+                  formatter={(value: number) => [`${displaySymbol} ${value.toLocaleString()}`, 'Amount']}
                   labelFormatter={(label) => `Day ${label}`}
                 />
                 <Bar 
@@ -266,24 +274,24 @@ export const ExpenseAnalytics = ({ expenses, selectedMonth }: ExpenseAnalyticsPr
 
         {/* Weekly Spending Trend */}
         <div className="space-y-4 lg:col-span-2">
-          <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h4 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-blue-500" />
             Weekly Spending Trend
           </h4>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={analytics.weeklyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="week" 
                   tick={{ fontSize: 12 }}
                 />
                 <YAxis 
                   tick={{ fontSize: 12 }}
-                  tickFormatter={(value) => `${currency.symbol}${value}`}
+                  tickFormatter={(value) => `${displaySymbol}${value}`}
                 />
                 <Tooltip 
-                  formatter={(value: number) => [`${currency.symbol} ${value.toLocaleString()}`, 'Amount']}
+                  formatter={(value: number) => [`${displaySymbol} ${value.toLocaleString()}`, 'Amount']}
                   labelFormatter={(label) => label}
                 />
                 <Line 

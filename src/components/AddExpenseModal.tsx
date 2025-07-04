@@ -215,29 +215,29 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               <span className="font-semibold text-base text-gray-800 dark:text-white">{category}</span>
               <span className="ml-auto text-xs text-gray-400 group-hover:text-teal-500">Change</span>
             </button>
-            {isCategoryModalOpen && (
+          {isCategoryModalOpen && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setIsCategoryModalOpen(false)}>
                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                   <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">Select Category</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {categories.map(cat => (
-                      <button
-                        key={cat}
-                        type="button"
+                    <button
+                      key={cat}
+                      type="button"
                         className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all duration-150 focus:outline-none ${category === cat ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20' : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-teal-300 dark:hover:border-teal-500 hover:bg-teal-50/50 dark:hover:bg-teal-900/20'}`}
-                        onClick={() => { setCategory(cat); setIsCategoryModalOpen(false); }}
+                      onClick={() => { setCategory(cat); setIsCategoryModalOpen(false); }}
                         aria-label={cat}
-                      >
+                    >
                         <div className="mb-1">{CATEGORY_ICONS[cat] || CATEGORY_ICONS['Others']}</div>
                         <span className="text-sm font-medium text-gray-800 dark:text-white">{cat}</span>
-                      </button>
-                    ))}
+                    </button>
+                  ))}
                   </div>
                   <button className="mt-6 w-full py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-150" onClick={() => setIsCategoryModalOpen(false)}>Cancel</button>
                 </div>
               </div>
             )}
-          </div>
+            </div>
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">

@@ -14,6 +14,7 @@ interface ExpenseItem {
   category: string;
   confidence: number;
   date?: string;
+  currency?: string; // NEW: optional currency field
 }
 
 interface ProcessingResult {
@@ -53,89 +54,91 @@ class AIAgent {
 
   // Enhanced expense extraction with AI learning (multilingual)
   async extractExpenses(text: string): Promise<ExpenseItem[]> {
-    try {
-      // Normalize digits
-      const normalizedText = this.normalizeDigits(text);
-      // Multilingual system prompt
-      const aiPrompt = `SYSTEM PROMPT — MULTILINGUAL EXPENSE PARSER\n\nYou are an AI voice assistant in a personal finance app. A user speaks in Arabic, English, or both, and your job is to extract structured expense data from the voice transcript.\n\n🧠 Input:\nA transcribed sentence from the user, possibly containing multiple expense items like:\n\n"دفعت ١٥ على القهوة"\n\n"Spent 30 on groceries and 20 for gas"\n\n🎯 Your task:\nExtract each expense item into:\n\n"amount" → number (numeric format only)\n\n"description" → short (like "coffee", "bus", "مطعم")\n\n"category" → from the allowed list\n\n✅ Allowed Categories:\n"Food", "Transport", "Groceries", "Health", "Shopping", "Entertainment", "Utilities", "Travel", "Bills", "Other"\n\nChoose the best match using either Arabic or English logic. If not clear, default to "Other".\n\n🧾 Output Format:\nReturn only a JSON array:\n\n[\n  {\n    "amount": 15,\n    "description": "قهوة",\n    "category": "Food"\n  },\n  {\n    "amount": 30,\n    "description": "groceries",\n    "category": "Groceries"\n  }\n]\n\n📌 Rules:\nYou must support both Arabic and English inputs\n\nVoice input may mix both languages in one sentence\n\nDo not include currency symbols (e.g., $, جنيه)\n\nExtract multiple expenses in one go\n\nIf no valid data is found, return:\n\n[]\n\nUser transcript: "${normalizedText}"\n\nExtract all expenses:`;
+    // Normalize digits
+    const normalizedText = this.normalizeDigits(text);
+    // Multilingual system prompt
+    const aiPrompt = `SYSTEM PROMPT — MULTILINGUAL EXPENSE PARSER\n\nYou are an AI voice assistant in a personal finance app. A user speaks in Arabic, English, or both, and your job is to extract structured expense data from the voice transcript.\n\n🧠 Input:\nA transcribed sentence from the user, possibly containing multiple expense items like:\n\n\"دفعت ١٥ على القهوة\"\n\n\"Spent 30 dollars on groceries and 20 جنيه for gas\"\n\n🎯 Your task:\nExtract each expense item into:\n\n\"amount\" → number (numeric format only)\n\n\"currency\" → (e.g., \"USD\", \"EGP\", \"EUR\", \"SAR\", etc.) if mentioned, otherwise null\n\n\"description\" → short (like \"coffee\", \"bus\", \"مطعم\")\n\n\"category\" → from the allowed list\n\n✅ Allowed Categories:\n\"Food\", \"Transport\", \"Groceries\", \"Health\", \"Shopping\", \"Entertainment\", \"Utilities\", \"Travel\", \"Bills\", \"Other\"\n\nChoose the best match using either Arabic or English logic. If not clear, default to \"Other\".\n\n🧾 Output Format:\nReturn only a JSON array:\n\n[\n  {\n    \"amount\": 15,\n    \"currency\": \"EGP\",\n    \"description\": \"قهوة\",\n    \"category\": \"Food\"\n  },\n  {\n    \"amount\": 30,\n    \"currency\": \"USD\",\n    \"description\": \"groceries\",\n    \"category\": \"Groceries\"\n  }\n]\n\n📌 Rules:\nYou must support both Arabic and English inputs\n\nVoice input may mix both languages in one sentence\n\nDo not include currency symbols (e.g., $, جنيه) in the description\n\nExtract multiple expenses in one go\n\nIf no valid data is found, return:\n\n[]\n\nUser transcript: \"${normalizedText}\"\n\nExtract all expenses:`;
 
-      // Call OpenAI API for expense extraction
-      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a precise expense extraction assistant. Always respond with valid JSON only.'
-            },
-            {
-              role: 'user',
-              content: aiPrompt
-            }
-          ],
-          temperature: 0.1,
-          max_tokens: 700
-        }),
-      });
-
-      if (!openaiResponse.ok) {
-        console.error('OpenAI API error:', await openaiResponse.text());
-        // Fallback to regex-based extraction
-        return this.extractExpensesWithRegex(normalizedText);
-      }
-
-      const openaiData = await openaiResponse.json();
-      const aiResponse = openaiData.choices[0]?.message?.content?.trim();
-
-      if (!aiResponse) {
-        console.error('No response from OpenAI');
-        return this.extractExpensesWithRegex(normalizedText);
-      }
-
-      // Parse the AI response
-      let expenses: ExpenseItem[] = [];
+    // Helper to call OpenAI with a given model
+    async function callOpenAI(model: string): Promise<ExpenseItem[] | null> {
       try {
-        // Try to extract JSON from the response
-        const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          expenses = JSON.parse(jsonMatch[0]);
-        } else {
-          // If no JSON array found, try parsing the entire response
-          expenses = JSON.parse(aiResponse);
+        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a precise expense extraction assistant. Always respond with valid JSON only.'
+              },
+              {
+                role: 'user',
+                content: aiPrompt
+              }
+            ],
+            temperature: 0.1,
+            max_tokens: 700
+          }),
+        });
+        if (!openaiResponse.ok) {
+          console.error(`OpenAI API error (${model}):`, await openaiResponse.text());
+          return null;
         }
-
-        // Validate and transform the expenses
-        const validatedExpenses: ExpenseItem[] = [];
-        for (const expense of expenses) {
-          if (expense.amount && expense.description && expense.category) {
-            validatedExpenses.push({
-              description: this.capitalizeFirst(expense.description),
-              amount: parseFloat(expense.amount),
-              category: expense.category,
-              confidence: 0.9 // High confidence for AI-extracted expenses
-            });
+        const openaiData = await openaiResponse.json();
+        const aiResponse = openaiData.choices[0]?.message?.content?.trim();
+        if (!aiResponse) {
+          console.error(`No response from OpenAI (${model})`);
+          return null;
+        }
+        // Parse the AI response
+        let expenses: ExpenseItem[] = [];
+        try {
+          const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            expenses = JSON.parse(jsonMatch[0]);
+          } else {
+            expenses = JSON.parse(aiResponse);
           }
+          // Validate and transform the expenses
+          const validatedExpenses: ExpenseItem[] = [];
+          for (const expense of expenses) {
+            if (expense.amount && expense.description && expense.category) {
+              validatedExpenses.push({
+                description: this.capitalizeFirst(expense.description),
+                amount: parseFloat(expense.amount),
+                category: expense.category,
+                confidence: 0.9,
+                currency: expense.currency // Pass through currency if present
+              });
+            }
+          }
+          if (validatedExpenses.length > 0) {
+            console.log(`AI extracted expenses (${model}):`, validatedExpenses);
+            return validatedExpenses;
+          }
+        } catch (parseError) {
+          console.error(`Error parsing AI response (${model}):`, parseError);
+          console.log('AI response was:', aiResponse);
         }
-
-        console.log('AI extracted expenses:', validatedExpenses);
-        return validatedExpenses;
-
-      } catch (parseError) {
-        console.error('Error parsing AI response:', parseError);
-        console.log('AI response was:', aiResponse);
-        // Fallback to regex-based extraction
-        return this.extractExpensesWithRegex(normalizedText);
+        return null;
+      } catch (error) {
+        console.error(`AI extraction failed (${model}):`, error);
+        return null;
       }
-
-    } catch (error) {
-      console.error('AI extraction failed, using fallback:', error);
-      return this.extractExpensesWithRegex(text);
     }
+
+    // Try GPT-4 first
+    let expenses = await callOpenAI.call(this, 'gpt-4');
+    if (expenses && expenses.length > 0) return expenses;
+    // Fallback to GPT-3.5-turbo
+    expenses = await callOpenAI.call(this, 'gpt-3.5-turbo');
+    if (expenses && expenses.length > 0) return expenses;
+    // Fallback to regex-based extraction
+    return this.extractExpensesWithRegex(normalizedText);
   }
 
   // Fallback regex-based extraction (original method)
@@ -761,7 +764,8 @@ serve(async (req) => {
 
     // Insert expenses into database
     const insertedExpenses = [];
-    let insertionErrors: string[] = [];
+    const insertionErrors: string[] = [];
+    const BASE_CURRENCY = 'EGP'; // Set your default base currency here
     
     // Calculate the correct expense date based on selectedMonth
     let expenseDate: string;
@@ -790,7 +794,7 @@ serve(async (req) => {
     console.log('Using expense date for selected month:', selectedMonth, '->', expenseDate);
     
     // Check for existing expenses to prevent duplicates
-    let existingExpenseMap = new Map();
+    const existingExpenseMap = new Map();
     try {
       const { data: existingExpenses, error: existingError } = await supabase
         .from('expenses')
@@ -812,39 +816,54 @@ serve(async (req) => {
     
     for (const expense of expenses) {
       try {
-        // Check for duplicates
-        const expenseKey = `${expense.description?.toLowerCase() || ''}-${expense.amount}`;
-        if (existingExpenseMap.has(expenseKey)) {
-          console.log('Skipping duplicate expense:', expense.description, expense.amount);
-          continue;
+        // Determine if we have a currency and need conversion
+        const original_amount = expense.amount;
+        const original_currency = expense.currency || BASE_CURRENCY;
+        let amount = expense.amount;
+        const base_currency = BASE_CURRENCY;
+        let conversion_rate = 1;
+        
+        // If the expense currency is different from base, fetch conversion rate
+        if (expense.currency && expense.currency !== BASE_CURRENCY) {
+          try {
+            // Example: fetch conversion rate from your own function or a public API
+            const fxRes = await fetch(`https://api.exchangerate.host/convert?from=${expense.currency}&to=${BASE_CURRENCY}`);
+            if (fxRes.ok) {
+              const fxData = await fxRes.json();
+              if (fxData && fxData.info && fxData.info.rate) {
+                conversion_rate = fxData.info.rate;
+                amount = Math.round((original_amount * conversion_rate) * 100) / 100;
+              }
+            }
+          } catch (fxError) {
+            console.error('Failed to fetch conversion rate:', fxError);
+            // Fallback: use original amount
+            amount = original_amount;
+            conversion_rate = 1;
+          }
         }
-        // Ensure category is valid
-        let category = expense.category;
-        if (!NEW_CATEGORIES.includes(category)) {
-          category = 'Others';
-        }
-        // Use transcription as description if missing
-        let description = expense.description;
-        if (!description || description.trim().length === 0) {
-          description = transcription;
-        }
+        // Insert with all relevant fields
         const { data, error } = await supabase.from('expenses').insert([{
           user_id: user.id,
-          amount: expense.amount,
-          description,
-          category,
+          amount, // always store in base currency
+          original_amount,
+          original_currency,
+          base_currency,
+          conversion_rate,
+          description: expense.description,
+          category: expense.category,
           date: expenseDate,
           created_at: new Date().toISOString(),
         }]).select();
         if (error) {
           console.error('Error inserting expense:', error);
-          insertionErrors.push(`Failed to save ${description}: ${error.message}`);
+          insertionErrors.push(`Failed to save ${expense.description}: ${error.message}`);
           continue;
         }
         if (data && data.length > 0) {
           insertedExpenses.push(data[0]);
           // Add to existing map to prevent duplicates within the same session
-          existingExpenseMap.set(expenseKey, true);
+          existingExpenseMap.set(`${expense.description?.toLowerCase() || ''}-${expense.amount}`, true);
         }
       } catch (expenseError) {
         console.error('Error processing expense:', expenseError);

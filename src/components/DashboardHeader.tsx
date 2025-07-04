@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Settings, User, Bell, Menu, X } from 'lucide-react';
+import { LogOut, Settings, User, Bell, Menu, X, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { AppLogo, AppLogoText } from './AppLogo';
 import { ThemeToggle } from './ThemeToggle';
 
-const DashboardHeader = () => {
+type DashboardHeaderProps = {
+  onOpenAnalytics?: () => void;
+};
+
+const DashboardHeader = (props: DashboardHeaderProps) => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { getUserName } = useUserSettings();
@@ -51,7 +55,13 @@ const DashboardHeader = () => {
           {/* Right side - Actions */}
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            
+            <button
+              onClick={props.onOpenAnalytics}
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors duration-200 dark:hover:bg-gray-800"
+              title="Analytics"
+            >
+              <TrendingUp className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            </button>
             <button
               onClick={() => navigate('/settings')}
               className="p-2 hover:bg-gray-100 rounded-xl transition-colors duration-200 dark:hover:bg-gray-800"
@@ -59,42 +69,8 @@ const DashboardHeader = () => {
             >
               <Settings className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
-
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 hover:bg-gray-100 rounded-xl transition-colors duration-200 dark:hover:bg-gray-800"
-            >
-              {isMobileMenuOpen ? (
-                <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              ) : (
-                <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              )}
-            </button>
           </div>
         </div>
-
-        {/* Mobile menu */}
-        {isMobileMenuOpen && (
-          <div className="lg:hidden mt-4 pb-4 border-t border-gray-100 dark:border-gray-800">
-            <div className="flex items-center justify-between pt-4">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                  {getGreeting()}, {getUserName()}!
-                </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleSignOut}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 dark:hover:bg-red-900/20"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign Out
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </header>
   );

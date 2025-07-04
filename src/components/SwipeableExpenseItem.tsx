@@ -80,39 +80,39 @@ const SwipeableExpenseItem: React.FC<SwipeableExpenseItemProps> = ({
           tabIndex={0}
           aria-label="Show actions"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900/30 rounded-full flex items-center justify-center">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900/30 rounded-full flex items-center justify-center">
               <span className="text-xl">
                 {CATEGORY_ICONS[expense.category] || CATEGORY_ICONS['Others']}
               </span>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 font-medium text-gray-900 dark:text-white">
-                {expense.description}
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{expense.category}</div>
+              <div>
+                <div className="flex items-center gap-2 font-medium text-gray-900 dark:text-white">
+                  {expense.description}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">{expense.category}</div>
+              </div>
             </div>
-          </div>
-          <div className="text-right">
-            <div className="font-semibold text-gray-900 dark:text-white">{settings?.base_currency || 'USD'} {formatCompactNumber(expense.amount)}</div>
-            {expense.original_amount && expense.original_currency && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 underline cursor-help">
-                    {formatCompactNumber(expense.original_amount)} {expense.original_currency}
-                    {expense.rate && (
-                      <> @ {expense.rate.toFixed(4)}</>
-                    )}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {expense.rate
-                    ? `Conversion rate: 1 ${expense.original_currency} = ${expense.rate.toFixed(4)} ${expense.base_currency}`
-                    : 'Original value'}
-                </TooltipContent>
-              </Tooltip>
-            )}
-            <div className="text-xs text-gray-500 dark:text-gray-400">{expense.date || expense.created_at}</div>
+            <div className="text-right">
+              <div className="font-semibold text-gray-900 dark:text-white">{settings?.base_currency || 'USD'} {formatCompactNumber(expense.amount)}</div>
+              {expense.original_amount && expense.original_currency && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 underline cursor-help">
+                      {formatCompactNumber(expense.original_amount)} {expense.original_currency}
+                      {expense.rate && (
+                        <> @ {expense.rate.toFixed(4)}</>
+                      )}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {expense.rate
+                      ? `Conversion rate: 1 ${expense.original_currency} = ${expense.rate.toFixed(4)} ${expense.base_currency}`
+                      : 'Original value'}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              <div className="text-xs text-gray-500 dark:text-gray-400">{expense.date || expense.created_at}</div>
           </div>
         </div>
       </div>

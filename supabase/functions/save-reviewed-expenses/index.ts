@@ -68,7 +68,7 @@ serve(async (req) => {
 
     // Insert expenses into database
     const insertedExpenses = [];
-    let insertionErrors: string[] = [];
+    const insertionErrors: string[] = [];
     
     for (const expense of expenses) {
       try {
